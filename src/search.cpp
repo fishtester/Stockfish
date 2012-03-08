@@ -50,6 +50,10 @@ using std::cout;
 using std::endl;
 using namespace Search;
 
+extern int totalEvals, lazyEvals;
+extern double lazyAvgDiff;
+
+
 namespace {
 
   // Set to true to force running with one thread. Used for debugging
@@ -82,7 +86,7 @@ namespace {
   const Depth SingularExtensionDepth[] = { 8 * ONE_PLY, 6 * ONE_PLY };
 
 	// Lazy evaluation margins
-	const Value LazyMarginQS = Value(0x155);
+	const Value LazyMarginQS = Value(0x100);
 	const Value LazyMargin = Value(0x2E0);
 	
   // Futility margin for quiescence search
@@ -571,7 +575,6 @@ namespace {
     oldAlpha = alpha;
     inCheck = pos.in_check();
     ss->ply = (ss-1)->ply + 1;
-		ss->qsNonPawnCapture = 0;
 
     // Used to send selDepth info to GUI
     if (PvNode && thread.maxPly < ss->ply)
@@ -1210,13 +1213,24 @@ split_point_start: // At split points actual search starts from here
         }
         else
 				{
-						Value lazyValue = PvNode ? VALUE_INFINITE : beta;
-						if ((ss-1)->qsNonPawnCapture)
-							lazyValue = VALUE_INFINITE;
+						Value lazyValue = PvNode ? VALUE_INFINITE : beta;							
+
+						totalEvals++;
 						ss->eval = bestValue = evaluate(pos, evalMargin, lazyValue, LazyMarginQS);
 						if (evalMargin == VALUE_INFINITE) {
+							// lazy margin took effect
+							lazyEvals++;
+/*							Value actualEval = evaluate(pos, evalMargin, VALUE_INFINITE, VALUE_NONE);
+							int diff = abs(actualEval-bestValue);
+							lazyAvgDiff += diff;
+							if (actualEval >= beta && bestValue < beta) {
+								printf("%d, %d\n%s\n", actualEval, bestValue, pos.to_fen().c_str());
+							}*/
+							
+							//evalMargin = Value(0x11);
 							evalMargin = VALUE_NONE;
 							lazyCutoff = true;
+							//ss->eval = bestValue = (bestValue - ((ss-1)->eval)) / 2;
 						}
 				}
 
@@ -1310,7 +1324,6 @@ split_point_start: // At split points actual search starts from here
           continue;
 
       ss->currentMove = move;
-			ss->qsNonPawnCapture = type_of(pos.piece_on(to_sq(move))) > PAWN;
 			
       // Make and search the move
       pos.do_move(move, st, ci, givesCheck);

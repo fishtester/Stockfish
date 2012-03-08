@@ -265,6 +265,35 @@ Value evaluate(const Position& pos, Value& margin, const Value beta, const Value
 
 namespace {
 
+inline ScaleFactor compute_scale_factor(const Position &pos, const Score score, const EvalInfo &ei, const Phase phase) {
+  // Scale winning side if position is more drawish that what it appears
+  ScaleFactor sf = eg_value(score) > VALUE_DRAW ? ei.mi->scale_factor(pos, WHITE)
+                                                : ei.mi->scale_factor(pos, BLACK);
+
+  // If we don't already have an unusual scale factor, check for opposite
+  // colored bishop endgames, and use a lower scale for those.
+  if (   phase < PHASE_MIDGAME
+      && pos.opposite_colored_bishops()
+      && sf == SCALE_FACTOR_NORMAL)
+  {
+      // Only the two bishops ?
+      if (   pos.non_pawn_material(WHITE) == BishopValueMidgame
+          && pos.non_pawn_material(BLACK) == BishopValueMidgame)
+      {
+          // Check for KBP vs KB with only a single pawn that is almost
+          // certainly a draw or at least two pawns.
+          bool one_pawn = (pos.piece_count(WHITE, PAWN) + pos.piece_count(BLACK, PAWN) == 1);
+          sf = one_pawn ? ScaleFactor(8) : ScaleFactor(32);
+      }
+      else
+          // Endgame with opposite-colored bishops, but also other pieces. Still
+          // a bit drawish, but not as drawish as with only the two bishops.
+           sf = ScaleFactor(50);
+  }
+
+	return sf;
+}
+
 template<bool Trace>
 Value do_evaluate(const Position& pos, Value& margin, const Value beta, const Value lazyMargin) {
 
@@ -303,15 +332,16 @@ Value do_evaluate(const Position& pos, Value& margin, const Value beta, const Va
   score += ei.pi->pawns_value();
 
   // Lazy evaluation. If we are at least one piece away from beta then stop here
-  if (beta != VALUE_INFINITE)
+  if (beta != VALUE_INFINITE && pos.captured_piece_type() <= PAWN)
   {
-		ScaleFactor sf = eg_value(score) > VALUE_DRAW ? ei.mi->scale_factor(pos, WHITE)
-		                                              : ei.mi->scale_factor(pos, BLACK);
+		ScaleFactor sf = compute_scale_factor(pos, score, ei, phase);
 		Value v = scale_by_game_phase(score, phase, sf);
 		v = (pos.side_to_move() == WHITE ? v : -v);
 		if (abs(v - beta) >= lazyMargin)
 		{
 			margin = VALUE_INFINITE;
+		//	margin = VALUE_NONE;
+			//printf("%d,%d\n%s\n", v, beta, pos.to_fen().c_str());
 			return v;
 		}
   }
@@ -349,34 +379,10 @@ Value do_evaluate(const Position& pos, Value& margin, const Value beta, const Va
       int s = evaluate_space<WHITE>(pos, ei) - evaluate_space<BLACK>(pos, ei);
       score += apply_weight(make_score(s * ei.mi->space_weight(), 0), Weights[Space]);
   }
-
-  // Scale winning side if position is more drawish that what it appears
-  ScaleFactor sf = eg_value(score) > VALUE_DRAW ? ei.mi->scale_factor(pos, WHITE)
-                                                : ei.mi->scale_factor(pos, BLACK);
-
-  // If we don't already have an unusual scale factor, check for opposite
-  // colored bishop endgames, and use a lower scale for those.
-  if (   phase < PHASE_MIDGAME
-      && pos.opposite_colored_bishops()
-      && sf == SCALE_FACTOR_NORMAL)
-  {
-      // Only the two bishops ?
-      if (   pos.non_pawn_material(WHITE) == BishopValueMidgame
-          && pos.non_pawn_material(BLACK) == BishopValueMidgame)
-      {
-          // Check for KBP vs KB with only a single pawn that is almost
-          // certainly a draw or at least two pawns.
-          bool one_pawn = (pos.piece_count(WHITE, PAWN) + pos.piece_count(BLACK, PAWN) == 1);
-          sf = one_pawn ? ScaleFactor(8) : ScaleFactor(32);
-      }
-      else
-          // Endgame with opposite-colored bishops, but also other pieces. Still
-          // a bit drawish, but not as drawish as with only the two bishops.
-           sf = ScaleFactor(50);
-  }
-
+	
   // Interpolate between the middle game and the endgame score
   margin = margins[pos.side_to_move()];
+	ScaleFactor sf = compute_scale_factor(pos, score, ei, phase);
   Value v = scale_by_game_phase(score, phase, sf);
 
   // In case of tracing add all single evaluation contributions for both white and black

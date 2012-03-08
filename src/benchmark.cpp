@@ -48,6 +48,9 @@ static const char* Defaults[] = {
   "3q2k1/pb3p1p/4pbp1/2r5/PpN2N2/1P2P2P/5PP1/Q2R2K1 b - - 4 26"
 };
 
+int totalEvals = 0, lazyEvals = 0;
+double lazyAvgDiff = 0;
+
 
 /// benchmark() runs a simple benchmark by letting Stockfish analyze a set
 /// of positions for a given limit each. There are five parameters; the
@@ -124,6 +127,8 @@ void benchmark(int argc, char* argv[]) {
           nodes += Search::RootPosition.nodes_searched();
       }
   }
+
+	printf("%d/%d\n%lf\n",lazyEvals,totalEvals,lazyAvgDiff/lazyEvals);
 
   time = system_time() - time;
 

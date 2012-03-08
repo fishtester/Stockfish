@@ -45,7 +45,6 @@ struct Stack {
   Value eval;
   Value evalMargin;
   int skipNullMove;
-	int qsNonPawnCapture;
 };
 
 
