@@ -29,6 +29,8 @@
 #include "thread.h"
 #include "ucioption.h"
 
+Value LazyMarginQS, LazyMargin;
+
 namespace {
 
   // Struct EvalInfo contains various information computed and collected
@@ -298,6 +300,9 @@ namespace Eval {
         KingDangerTable[1][i] = apply_weight(make_score(t, 0), Weights[KingDangerUs]);
         KingDangerTable[0][i] = apply_weight(make_score(t, 0), Weights[KingDangerThem]);
     }
+
+		LazyMargin = Value(Options["LazyMain"] * 10);
+		LazyMarginQS = Value(Options["LazyQS"] * 10);
   }
 
 

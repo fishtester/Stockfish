@@ -54,6 +54,7 @@ using namespace Search;
 extern int totalEvals, lazyEvals;
 extern double lazyAvgDiff;
 
+extern Value LazyMarginQS, LazyMargin;
 
 namespace {
 
@@ -87,8 +88,8 @@ namespace {
   const Depth SingularExtensionDepth[] = { 8 * ONE_PLY, 6 * ONE_PLY };
 
 	// Lazy evaluation margins
-	const Value LazyMarginQS = Value(0x100);
-	const Value LazyMargin = Value(0x2E0);
+//	const Value LazyMarginQS = Value(0x100);
+//	const Value LazyMargin = Value(0x2E0);
 	
   // Futility margin for quiescence search
   const Value FutilityMarginQS = Value(0x80);
