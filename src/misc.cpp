@@ -19,15 +19,11 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 
-#define _CRT_SECURE_NO_DEPRECATE
 #define NOMINMAX // disable macros min() and max()
 #include <windows.h>
-#include <sys/timeb.h>
 
 #else
 
-#  include <sys/time.h>
-#  include <sys/types.h>
 #  include <unistd.h>
 #  if defined(__hpux)
 #     include <sys/pstat.h>
@@ -43,6 +39,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <streambuf>
 
 #include "misc.h"
 #include "thread.h"
@@ -77,12 +74,12 @@ const string engine_info(bool to_uci) {
       s << "Stockfish " << Tag
         << setfill('0') << " " << year.substr(2)
         << setw(2) << (1 + months.find(month) / 4)
-        << setw(2) << day << cpu64 << popcnt;
+        << setw(2) << day;
   }
   else
-      s << "Stockfish " << Version << cpu64 << popcnt;
+      s << "Stockfish " << Version;
 
-  s << (to_uci ? "\nid author ": " by ")
+  s << cpu64 << popcnt << (to_uci ? "\nid author ": " by ")
     << "Tord Romstad, Marco Costalba and Joona Kiiski";
 
   return s.str();
@@ -109,19 +106,93 @@ void dbg_print() {
 }
 
 
-/// system_time() returns the current system time, measured in milliseconds
+/// Our fancy logging facility. The trick here is to replace cout.rdbuf() with
+/// this one that sends the output both to console and to a file, this allow us
+/// to toggle the logging of std::cout to a file while preserving output to
+/// stdout and without changing a single line of code! Idea and code from:
+/// http://groups.google.com/group/comp.lang.c++/msg/1d941c0f26ea0d81
 
-int system_time() {
+class Tee: public streambuf {
+public:
+  typedef char_traits<char> traits_type;
+  typedef traits_type::int_type int_type;
 
-#if defined(_WIN32) || defined(_WIN64)
-  struct _timeb t;
-  _ftime(&t);
-  return int(t.time * 1000 + t.millitm);
-#else
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return t.tv_sec * 1000 + t.tv_usec / 1000;
-#endif
+  Tee(ios& s, ofstream& f) : stream(s), file(f), stream_buf(s.rdbuf()) {}
+  ~Tee() { set(false); }
+
+  void set(bool b) { stream.rdbuf(b ? this : stream_buf); }
+
+private:
+  int_type overflow(int_type c) {
+
+    if (traits_type::eq_int_type(c, traits_type::eof()))
+        return traits_type::not_eof(c);
+
+    c = stream_buf->sputc(traits_type::to_char_type(c));
+
+    if (!traits_type::eq_int_type(c, traits_type::eof()))
+        c = file.rdbuf()->sputc(traits_type::to_char_type(c));
+
+    return c;
+  }
+
+  int sync() {
+
+    int c = stream_buf->pubsync();
+
+    if (c != -1)
+        c = file.rdbuf()->pubsync();
+
+    return c;
+  }
+
+  int underflow() { return traits_type::not_eof(stream_buf->sgetc()); }
+
+  int uflow() {
+
+      int c = stream_buf->sbumpc();
+
+      if (!traits_type::eq_int_type(c, traits_type::eof()))
+          file.rdbuf()->sputc(traits_type::to_char_type(c));
+
+      return traits_type::not_eof(c);
+  }
+
+  ios& stream;
+  ofstream& file;
+  streambuf* stream_buf;
+};
+
+class Logger {
+public:
+   Logger() : in(cin, file), out(cout, file) {}
+  ~Logger() { set(false); }
+
+  void set(bool b) {
+
+    if (b && !file.is_open())
+    {
+        file.open("io_log.txt", ifstream::out | ifstream::app);
+        in.set(true);
+        out.set(true);
+    }
+    else if (!b && file.is_open())
+    {
+        out.set(false);
+        in.set(false);
+        file.close();
+    }
+  }
+
+private:
+  Tee in, out;
+  ofstream file;
+};
+
+void logger_set(bool b) {
+
+  static Logger l;
+  l.set(b);
 }
 
 
@@ -158,19 +229,11 @@ void timed_wait(WaitCondition& sleepCond, Lock& sleepLock, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
   int tm = msec;
 #else
-  struct timeval t;
-  struct timespec abstime, *tm = &abstime;
+  timespec ts, *tm = &ts;
+  uint64_t ms = Time::current_time().msec() + msec;
 
-  gettimeofday(&t, NULL);
-
-  abstime.tv_sec = t.tv_sec + (msec / 1000);
-  abstime.tv_nsec = (t.tv_usec + (msec % 1000) * 1000) * 1000;
-
-  if (abstime.tv_nsec > 1000000000LL)
-  {
-      abstime.tv_sec += 1;
-      abstime.tv_nsec -= 1000000000LL;
-  }
+  ts.tv_sec = ms / 1000;
+  ts.tv_nsec = (ms % 1000) * 1000000LL;
 #endif
 
   cond_timedwait(sleepCond, sleepLock, tm);

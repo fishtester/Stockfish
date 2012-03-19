@@ -44,6 +44,7 @@
 #pragma warning(disable: 4127) // Conditional expression is constant
 #pragma warning(disable: 4146) // Unary minus operator applied to unsigned type
 #pragma warning(disable: 4800) // Forcing value to bool 'true' or 'false'
+#pragma warning(disable: 4996) // Function _ftime() may be unsafe
 
 // MSVC does not support <inttypes.h>
 typedef   signed __int8    int8_t;
@@ -57,6 +58,20 @@ typedef unsigned __int64 uint64_t;
 
 #else
 #  include <inttypes.h>
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+#  include <sys/timeb.h>
+typedef _timeb sys_time_t;
+
+inline void system_time(sys_time_t* t) { _ftime(t); }
+inline uint64_t time_to_msec(const sys_time_t& t) { return t.time * 1000LL + t.millitm; }
+#else
+#  include <sys/time.h>
+typedef timeval sys_time_t;
+
+inline void system_time(sys_time_t* t) { gettimeofday(t, NULL); }
+inline uint64_t time_to_msec(const sys_time_t& t) { return t.tv_sec * 1000LL + t.tv_usec / 1000; }
 #endif
 
 #if defined(_WIN64)
@@ -99,7 +114,7 @@ typedef uint64_t Key;
 typedef uint64_t Bitboard;
 
 const int MAX_MOVES      = 256;
-const int MAX_PLY        = 100;
+const int MAX_PLY        = 256;
 const int MAX_PLY_PLUS_2 = MAX_PLY + 2;
 
 const Bitboard FileABB = 0x0101010101010101ULL;
@@ -185,7 +200,7 @@ enum Value {
 };
 
 enum PieceType {
-  NO_PIECE_TYPE = 0,
+  NO_PIECE_TYPE = 0, ALL_PIECES = 0,
   PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6
 };
 
@@ -452,7 +467,7 @@ inline int is_castle(Move m) {
   return (m & (3 << 14)) == (3 << 14);
 }
 
-inline PieceType promotion_piece_type(Move m) {
+inline PieceType promotion_type(Move m) {
   return PieceType(((m >> 12) & 3) + 2);
 }
 

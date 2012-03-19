@@ -40,7 +40,7 @@ namespace {
     const CastleRight CR[] = { Side ? WHITE_OOO : WHITE_OO,
                                Side ? BLACK_OOO : BLACK_OO };
 
-    if (!pos.can_castle(CR[us]))
+    if (pos.castle_impeded(CR[us]) || !pos.can_castle(CR[us]))
         return mlist;
 
     // After castling, the rook and king final positions are the same in Chess960
@@ -48,36 +48,23 @@ namespace {
     Square kfrom = pos.king_square(us);
     Square rfrom = pos.castle_rook_square(CR[us]);
     Square kto = relative_square(us, Side == KING_SIDE ? SQ_G1 : SQ_C1);
-    Square rto = relative_square(us, Side == KING_SIDE ? SQ_F1 : SQ_D1);
     Bitboard enemies = pos.pieces(~us);
 
     assert(!pos.in_check());
     assert(pos.piece_on(kfrom) == make_piece(us, KING));
     assert(pos.piece_on(rfrom) == make_piece(us, ROOK));
 
-    // Unimpeded rule: All the squares between the king's initial and final squares
-    // (including the final square), and all the squares between the rook's initial
-    // and final squares (including the final square), must be vacant except for
-    // the king and castling rook.
-    for (Square s = std::min(rfrom, rto), e = std::max(rfrom, rto); s <= e; s++)
-        if (s != kfrom && s != rfrom && !pos.square_is_empty(s))
-            return mlist;
-
     for (Square s = std::min(kfrom, kto), e = std::max(kfrom, kto); s <= e; s++)
-        if (  (s != kfrom && s != rfrom && !pos.square_is_empty(s))
-            ||(pos.attackers_to(s) & enemies))
+        if (    s != kfrom // We are not in check
+            && (pos.attackers_to(s) & enemies))
             return mlist;
 
     // Because we generate only legal castling moves we need to verify that
     // when moving the castling rook we do not discover some hidden checker.
     // For instance an enemy queen in SQ_A1 when castling rook is in SQ_B1.
-    if (pos.is_chess960())
-    {
-        Bitboard occ = pos.occupied_squares();
-        occ ^= rfrom;
-        if (pos.attackers_to(kto, occ) & enemies)
+    if (    pos.is_chess960()
+        && (pos.attackers_to(kto, pos.pieces() ^ rfrom) & enemies))
             return mlist;
-    }
 
     (*mlist++).move = make_castle(kfrom, rfrom);
 
@@ -155,7 +142,7 @@ namespace {
     // Single and double pawn pushes, no promotions
     if (Type != MV_CAPTURE)
     {
-        emptySquares = (Type == MV_QUIET ? target : pos.empty_squares());
+        emptySquares = (Type == MV_QUIET ? target : ~pos.pieces());
 
         b1 = move_pawns<UP>(pawnsNotOn7)   & emptySquares;
         b2 = move_pawns<UP>(b1 & TRank3BB) & emptySquares;
@@ -193,7 +180,7 @@ namespace {
     if (pawnsOn7 && (Type != MV_EVASION || (target & TRank8BB)))
     {
         if (Type == MV_CAPTURE)
-            emptySquares = pos.empty_squares();
+            emptySquares = ~pos.pieces();
 
         if (Type == MV_EVASION)
             emptySquares &= target;
@@ -246,7 +233,7 @@ namespace {
 
     if (*pl != SQ_NONE)
     {
-        target = ci.checkSq[Pt] & pos.empty_squares(); // Non capture checks only
+        target = ci.checkSq[Pt] & ~pos.pieces(); // Non capture checks only
 
         do {
             from = *pl;
@@ -321,10 +308,10 @@ MoveStack* generate(const Position& pos, MoveStack* mlist) {
       target = pos.pieces(~us);
 
   else if (Type == MV_QUIET)
-      target = pos.empty_squares();
+      target = ~pos.pieces();
 
   else if (Type == MV_NON_EVASION)
-      target = pos.pieces(~us) | pos.empty_squares();
+      target = ~pos.pieces(us);
 
   mlist = (us == WHITE ? generate_pawn_moves<WHITE, Type>(pos, mlist, target)
                        : generate_pawn_moves<BLACK, Type>(pos, mlist, target));
@@ -369,7 +356,7 @@ MoveStack* generate<MV_QUIET_CHECK>(const Position& pos, MoveStack* mlist) {
      if (pt == PAWN)
          continue; // Will be generated togheter with direct checks
 
-     Bitboard b = pos.attacks_from(Piece(pt), from) & pos.empty_squares();
+     Bitboard b = pos.attacks_from(Piece(pt), from) & ~pos.pieces();
 
      if (pt == KING)
          b &= ~PseudoAttacks[QUEEN][ci.ksq];

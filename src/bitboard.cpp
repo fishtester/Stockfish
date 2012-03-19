@@ -30,12 +30,12 @@ CACHE_LINE_ALIGNMENT
 Bitboard RMasks[64];
 Bitboard RMagics[64];
 Bitboard* RAttacks[64];
-int RShifts[64];
+unsigned RShifts[64];
 
 Bitboard BMasks[64];
 Bitboard BMagics[64];
 Bitboard* BAttacks[64];
-int BShifts[64];
+unsigned BShifts[64];
 
 Bitboard SquareBB[64];
 Bitboard FileBB[8];
@@ -64,7 +64,7 @@ namespace {
   typedef unsigned (Fn)(Square, Bitboard);
 
   void init_magics(Bitboard table[], Bitboard* attacks[], Bitboard magics[],
-                   Bitboard masks[], int shifts[], Square deltas[], Fn get_index);
+                   Bitboard masks[], unsigned shifts[], Square deltas[], Fn index);
 }
 
 
@@ -112,7 +112,7 @@ Square first_1(Bitboard b) {
 // Use type-punning
 union b_union {
 
-    Bitboard b;
+    Bitboard dummy;
     struct {
 #if defined (BIGENDIAN)
         uint32_t h;
@@ -121,27 +121,21 @@ union b_union {
         uint32_t l;
         uint32_t h;
 #endif
-    } dw;
+    } b;
 };
 
-Square pop_1st_bit(Bitboard* bb) {
+Square pop_1st_bit(Bitboard* b) {
 
-   b_union u;
-   Square ret;
+   const b_union u = *((b_union*)b);
 
-   u.b = *bb;
-
-   if (u.dw.l)
+   if (u.b.l)
    {
-       ret = Square(BSFTable[((u.dw.l ^ (u.dw.l - 1)) * 0x783A9B23) >> 26]);
-       u.dw.l &= (u.dw.l - 1);
-       *bb = u.b;
-       return ret;
+       ((b_union*)b)->b.l = u.b.l & (u.b.l - 1);
+       return Square(BSFTable[((u.b.l ^ (u.b.l - 1)) * 0x783A9B23) >> 26]);
    }
-   ret = Square(BSFTable[((~(u.dw.h ^ (u.dw.h - 1))) * 0x783A9B23) >> 26]);
-   u.dw.h &= (u.dw.h - 1);
-   *bb = u.b;
-   return ret;
+
+   ((b_union*)b)->b.h = u.b.h & (u.b.h - 1);
+   return Square(BSFTable[((~(u.b.h ^ (u.b.h - 1))) * 0x783A9B23) >> 26]);
 }
 
 #endif // !defined(USE_BSFQ)
@@ -219,13 +213,13 @@ void bitboards_init() {
   Square RDeltas[] = { DELTA_N,  DELTA_E,  DELTA_S,  DELTA_W  };
   Square BDeltas[] = { DELTA_NE, DELTA_SE, DELTA_SW, DELTA_NW };
 
-  init_magics(RTable, RAttacks, RMagics, RMasks, RShifts, RDeltas, r_index);
-  init_magics(BTable, BAttacks, BMagics, BMasks, BShifts, BDeltas, b_index);
+  init_magics(RTable, RAttacks, RMagics, RMasks, RShifts, RDeltas, magic_index<ROOK>);
+  init_magics(BTable, BAttacks, BMagics, BMasks, BShifts, BDeltas, magic_index<BISHOP>);
 
   for (Square s = SQ_A1; s <= SQ_H8; s++)
   {
-      PseudoAttacks[BISHOP][s] = bishop_attacks_bb(s, 0);
-      PseudoAttacks[ROOK][s]   = rook_attacks_bb(s, 0);
+      PseudoAttacks[BISHOP][s] = attacks_bb<BISHOP>(s, 0);
+      PseudoAttacks[ROOK][s]   = attacks_bb<ROOK>(s, 0);
       PseudoAttacks[QUEEN][s]  = PseudoAttacks[BISHOP][s] | PseudoAttacks[ROOK][s];
   }
 
@@ -290,7 +284,7 @@ namespace {
   // use the so called "fancy" approach.
 
   void init_magics(Bitboard table[], Bitboard* attacks[], Bitboard magics[],
-                   Bitboard masks[], int shifts[], Square deltas[], Fn get_index) {
+                   Bitboard masks[], unsigned shifts[], Square deltas[], Fn index) {
 
     int MagicBoosters[][8] = { { 3191, 2184, 1310, 3618, 2091, 1308, 2452, 3996 },
                                { 1059, 3608,  605, 3234, 3326,   38, 2029, 3043 } };
@@ -342,7 +336,7 @@ namespace {
             // effect of verifying the magic.
             for (i = 0; i < size; i++)
             {
-                Bitboard& attack = attacks[s][get_index(s, occupancy[i])];
+                Bitboard& attack = attacks[s][index(s, occupancy[i])];
 
                 if (attack && attack != reference[i])
                     break;

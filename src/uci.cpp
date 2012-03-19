@@ -83,9 +83,6 @@ void uci_loop() {
       else if (token == "go")
           go(pos, is);
 
-      else if (token == "ucinewgame")
-          pos.from_fen(StartFEN, false);
-
       else if (token == "isready")
           cout << "readyok" << endl;
 
@@ -105,10 +102,7 @@ void uci_loop() {
           pos.flip_me();
 
       else if (token == "eval")
-      {
-          read_evaluation_uci_options(pos.side_to_move());
-          cout << trace_evaluate(pos) << endl;
-      }
+          cout << Eval::trace(pos) << endl;
 
       else if (token == "key")
           cout << "key: " << hex     << pos.key()
@@ -181,14 +175,10 @@ namespace {
     while (is >> token)
         value += string(" ", !value.empty()) + token;
 
-    if (!Options.count(name))
-        cout << "No such option: " << name << endl;
-
-    else if (value.empty()) // UCI buttons don't have a value
-        Options[name] = true;
-
-    else
+    if (Options.count(name))
         Options[name] = value;
+    else
+        cout << "No such option: " << name << endl;
   }
 
 
@@ -243,19 +233,19 @@ namespace {
 
   void perft(Position& pos, istringstream& is) {
 
-    int depth, time;
+    int depth;
 
     if (!(is >> depth))
         return;
 
-    time = system_time();
+    Time time = Time::current_time();
 
     int64_t n = Search::perft(pos, depth * ONE_PLY);
 
-    time = system_time() - time;
+    int e = time.elapsed();
 
     std::cout << "\nNodes " << n
-              << "\nTime (ms) " << time
-              << "\nNodes/second " << int(n / (time / 1000.0)) << std::endl;
+              << "\nTime (ms) " << e
+              << "\nNodes/second " << int(n / (e / 1000.0)) << std::endl;
   }
 }

@@ -28,12 +28,12 @@ CACHE_LINE_ALIGNMENT
 extern Bitboard RMasks[64];
 extern Bitboard RMagics[64];
 extern Bitboard* RAttacks[64];
-extern int RShifts[64];
+extern unsigned RShifts[64];
 
 extern Bitboard BMasks[64];
 extern Bitboard BMagics[64];
 extern Bitboard* BAttacks[64];
-extern int BShifts[64];
+extern unsigned BShifts[64];
 
 extern Bitboard SquareBB[64];
 extern Bitboard FileBB[8];
@@ -57,11 +57,19 @@ inline Bitboard operator&(Bitboard b, Square s) {
 }
 
 inline Bitboard& operator|=(Bitboard& b, Square s) {
-  return b |= SquareBB[s], b;
+  return b |= SquareBB[s];
 }
 
 inline Bitboard& operator^=(Bitboard& b, Square s) {
-  return b ^= SquareBB[s], b;
+  return b ^= SquareBB[s];
+}
+
+inline Bitboard operator|(Bitboard b, Square s) {
+  return b | SquareBB[s];
+}
+
+inline Bitboard operator^(Bitboard b, Square s) {
+  return b ^ SquareBB[s];
 }
 
 
@@ -116,41 +124,28 @@ inline Bitboard in_front_bb(Color c, Square s) {
 }
 
 
-/// Functions for computing sliding attack bitboards. rook_attacks_bb(),
-/// bishop_attacks_bb() and queen_attacks_bb() all take a square and a
-/// bitboard of occupied squares as input, and return a bitboard representing
-/// all squares attacked by a rook, bishop or queen on the given square.
+/// Functions for computing sliding attack bitboards. Function attacks_bb() takes
+/// a square and a bitboard of occupied squares as input, and returns a bitboard
+/// representing all squares attacked by Pt (bishop or rook) on the given square.
+template<PieceType Pt>
+FORCE_INLINE unsigned magic_index(Square s, Bitboard occ) {
 
-#if defined(IS_64BIT)
+  Bitboard* const Masks  = Pt == ROOK ? RMasks  : BMasks;
+  Bitboard* const Magics = Pt == ROOK ? RMagics : BMagics;
+  unsigned* const Shifts = Pt == ROOK ? RShifts : BShifts;
 
-FORCE_INLINE unsigned r_index(Square s, Bitboard occ) {
-  return unsigned(((occ & RMasks[s]) * RMagics[s]) >> RShifts[s]);
+  if (Is64Bit)
+      return unsigned(((occ & Masks[s]) * Magics[s]) >> Shifts[s]);
+
+  unsigned lo = unsigned(occ) & unsigned(Masks[s]);
+  unsigned hi = unsigned(occ >> 32) & unsigned(Masks[s] >> 32);
+  return (lo * unsigned(Magics[s]) ^ hi * unsigned(Magics[s] >> 32)) >> Shifts[s];
 }
 
-FORCE_INLINE unsigned b_index(Square s, Bitboard occ) {
-  return unsigned(((occ & BMasks[s]) * BMagics[s]) >> BShifts[s]);
-}
-
-#else // if !defined(IS_64BIT)
-
-FORCE_INLINE unsigned r_index(Square s, Bitboard occ) {
-  Bitboard b = occ & RMasks[s];
-  return unsigned(int(b) * int(RMagics[s]) ^ int(b >> 32) * int(RMagics[s] >> 32)) >> RShifts[s];
-}
-
-FORCE_INLINE unsigned b_index(Square s, Bitboard occ) {
-  Bitboard b = occ & BMasks[s];
-  return unsigned(int(b) * int(BMagics[s]) ^ int(b >> 32) * int(BMagics[s] >> 32)) >> BShifts[s];
-}
-
-#endif
-
-inline Bitboard rook_attacks_bb(Square s, Bitboard occ) {
-  return RAttacks[s][r_index(s, occ)];
-}
-
-inline Bitboard bishop_attacks_bb(Square s, Bitboard occ) {
-  return BAttacks[s][b_index(s, occ)];
+template<PieceType Pt>
+inline Bitboard attacks_bb(Square s, Bitboard occ) {
+  Bitboard** const Attacks = Pt == ROOK ? RAttacks : BAttacks;
+  return Attacks[s][magic_index<Pt>(s, occ)];
 }
 
 
@@ -209,6 +204,14 @@ inline bool squares_aligned(Square s1, Square s2, Square s3) {
 inline Bitboard same_color_squares(Square s) {
   return Bitboard(0xAA55AA55AA55AA55ULL) & s ?  0xAA55AA55AA55AA55ULL
                                              : ~0xAA55AA55AA55AA55ULL;
+}
+
+
+/// single_bit() returns true if in the 'b' bitboard is set a single bit (or if
+/// b == 0).
+
+inline bool single_bit(Bitboard b) {
+  return !(b & (b - 1));
 }
 
 

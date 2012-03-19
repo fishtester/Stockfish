@@ -46,7 +46,7 @@ const string move_to_uci(Move m, bool chess960) {
       to = from + (file_of(to) == FILE_H ? Square(2) : -Square(2));
 
   if (is_promotion(m))
-      promotion = char(tolower(piece_type_to_char(promotion_piece_type(m))));
+      promotion = char(tolower(piece_type_to_char(promotion_type(m))));
 
   return square_to_string(from) + square_to_string(to) + promotion;
 }
@@ -84,7 +84,7 @@ const string move_to_san(Position& pos, Move m) {
   bool ambiguousMove, ambiguousFile, ambiguousRank;
   Square sq, from = from_sq(m);
   Square to = to_sq(m);
-  PieceType pt = type_of(pos.piece_on(from));
+  PieceType pt = type_of(pos.piece_moved(m));
   string san;
 
   if (is_castle(m))
@@ -142,7 +142,7 @@ const string move_to_san(Position& pos, Move m) {
       if (is_promotion(m))
       {
           san += '=';
-          san += piece_type_to_char(promotion_piece_type(m));
+          san += piece_type_to_char(promotion_type(m));
       }
   }
 

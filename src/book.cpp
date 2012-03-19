@@ -315,7 +315,7 @@ namespace {
   uint64_t book_key(const Position& pos) {
 
     uint64_t key = 0;
-    Bitboard b = pos.occupied_squares();
+    Bitboard b = pos.pieces();
 
     while (b)
     {
@@ -342,7 +342,7 @@ namespace {
 
 Book::Book() : size(0) {
 
-  for (int i = abs(system_time() % 10000); i > 0; i--)
+  for (int i = Time::current_time().msec() % 10000; i > 0; i--)
       RKiss.rand<unsigned>(); // Make random number generation less deterministic
 }
 
@@ -383,7 +383,7 @@ bool Book::open(const char* fName) {
       return false; // Silently fail if the file is not found
 
   // Get the book size in number of entries, we are already at the end of file
-  size = tellg() / sizeof(BookEntry);
+  size = (size_t)tellg() / sizeof(BookEntry);
 
   if (!good())
   {

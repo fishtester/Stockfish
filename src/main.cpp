@@ -21,9 +21,11 @@
 #include <string>
 
 #include "bitboard.h"
+#include "evaluate.h"
 #include "position.h"
 #include "search.h"
 #include "thread.h"
+#include "ucioption.h"
 
 using namespace std;
 
@@ -33,13 +35,20 @@ extern void kpk_bitbase_init();
 
 int main(int argc, char* argv[]) {
 
+  // Don't sync with C library I/O buffers, faster but now using printf()
+  // or scanf() could yield to issues because buffers are independent.
+  cout.sync_with_stdio(false);
+  cin.sync_with_stdio(false);
+
+  cout << engine_info() << endl;
+
   bitboards_init();
   Position::init();
   kpk_bitbase_init();
   Search::init();
   Threads.init();
-
-  cout << engine_info() << endl;
+  Eval::init();
+  TT.set_size(Options["Hash"]);
 
   if (argc == 1)
       uci_loop();

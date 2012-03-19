@@ -167,20 +167,18 @@ void MovePicker::score_captures() {
                   - type_of(pos.piece_moved(m));
 
       if (is_promotion(m))
-          cur->score += PieceValueMidgame[promotion_piece_type(m)];
+          cur->score += PieceValueMidgame[promotion_type(m)];
   }
 }
 
 void MovePicker::score_noncaptures() {
 
   Move m;
-  Square from;
 
   for (MoveStack* cur = moves; cur != lastMove; cur++)
   {
       m = cur->move;
-      from = from_sq(m);
-      cur->score = H.value(pos.piece_on(from), to_sq(m));
+      cur->score = H.value(pos.piece_moved(m), to_sq(m));
   }
 }
 
