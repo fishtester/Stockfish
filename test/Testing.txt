@@ -1,7 +1,0 @@
-../cutechess-cli/cutechess-cli.sh -pgnin openings.pgn -repeat -rounds 8000 -resign 3 500 -draw 20 5 -pgnout results.pgn -engine cmd=base proto=uci option.Threads=1 name=base -engine cmd=stockfish proto=uci option.Threads=1 -each tc=40/30
-
-position fen 8/8/2pk4/5P2/1PP1K1Nb/8/8/8 b - - 0 40
-go depth 20
-
-info depth 20 seldepth 40 score cp -610 nodes 4783628 nps 3514789 time 1361 multipv 1 pv d6c7 c4c5 h4e1 b4b5 c6b5 f5f6 e1h4 e4d5 b5b4 d5c4 c7d8 c4b4 d8e8 c5c6 h4g3 b4c5 g3c7 c5d4 e8d8 d4d5 c7b6 g4e5 b6a5 d5e6 a5d2 f6f7 d2h6 e6d5 d8c7 e5d7
-bestmove d6c7 ponder c4c5
