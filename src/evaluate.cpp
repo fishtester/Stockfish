@@ -192,7 +192,7 @@ namespace {
   // is used as an index to KingDangerTable[].
   //
   // KingAttackWeights[PieceType] contains king attack weights by piece type
-  const int KingAttackWeights[] = { 0, 0, 2, 2, 3, 5 };
+  const int KingAttackWeights[] = { 0, 1, 2, 2, 3, 5 };
 
   // Bonuses for enemy's safe checks
   const int QueenContactCheckBonus = 6;
@@ -755,10 +755,17 @@ Value do_evaluate(const Position& pos, Value& margin) {
     // King shelter and enemy pawns storm
     Score score = ei.pi->king_safety<Us>(pos, ksq);
 
+		bool otherAttack = ei.kingAdjacentZoneAttacksCount[Them];
+		if (ei.attackedBy[Them][PAWN] & ei.kingRing[Us]) {
+			ei.kingAttackersCount[Them]++;
+			ei.kingAttackersWeight[Them] += KingAttackWeights[PAWN];
+			otherAttack = true;
+		}
+		
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
     if (   ei.kingAttackersCount[Them] >= 2
-        && ei.kingAdjacentZoneAttacksCount[Them])
+        && otherAttack)
     {
         // Find the attacked squares around the king which has no defenders
         // apart from the king itself
@@ -775,7 +782,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
         attackUnits =  std::min(25, (ei.kingAttackersCount[Them] * ei.kingAttackersWeight[Them]) / 2)
                      + 3 * (ei.kingAdjacentZoneAttacksCount[Them] + popcount<Max15>(undefended))
                      + InitKingDanger[relative_square(Us, ksq)]
-                     - mg_value(ei.pi->king_safety<Us>(pos, ksq)) / 32;
+                     - mg_value(ei.pi->king_safety<Us>(pos, ksq) / 2) / 32;
 
         // Analyse enemy's safe queen contact checks. First find undefended
         // squares around the king attacked by enemy queen...
