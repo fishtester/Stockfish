@@ -774,9 +774,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (   ei.kingAttackersCount[Us][Them] >= 2
-				&& ei.kingAdjacentZoneAttacksCount[Us][Them])
-//				|| (ei.kingAttackersCount[Us][Them] > 0 && ei.kingAdjacentZoneAttacksCount[Us][Them]))
+    if (   ei.kingAttackersCount[Us][Them] > 2
+				|| (ei.kingAttackersCount[Us][Them] > 0 && ei.kingAdjacentZoneAttacksCount[Us][Them]))
     {
         // Find the attacked squares around the king which has no defenders
         // apart from the king itself
@@ -794,10 +793,10 @@ Value do_evaluate(const Position& pos, Value& margin) {
                      + 3 * (ei.kingAdjacentZoneAttacksCount[Us][Them] + popcount<Max15>(undefended))
 										 + InitKingDanger[relative_square(Us, ksq)];
 										
-//				attackUnits = (attackUnits * 3) / 2;
+				attackUnits = (attackUnits * 3) / 2;
 										
-//				attackUnits -= std::min(25, (ei.kingAttackersCount[Us][Us] * ei.kingAttackersWeight[Us][Us]) / 2)
-//										 + 3 * ei.kingAdjacentZoneAttacksCount[Us][Us];
+				attackUnits -= std::min(25, (ei.kingAttackersCount[Us][Us] * ei.kingAttackersWeight[Us][Us]) / 2)
+										 + 3 * ei.kingAdjacentZoneAttacksCount[Us][Us];
 										
 				attackUnits -= mg_value(ei.pi->king_safety<Us>(pos, ksq)) / 32;
 
