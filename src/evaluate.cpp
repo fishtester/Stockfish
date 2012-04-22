@@ -488,7 +488,6 @@ Value do_evaluate(const Position& pos, Value& margin) {
     const Color Them = (Us == WHITE ? BLACK : WHITE);
     Bitboard b = ei.attackedBy[Them][KING] = pos.attacks_from<KING>(pos.king_square(Them));
     ei.attackedBy[Us][PAWN] = ei.pi->pawn_attacks(Us);
-    ei.attackedBy[Them][PAWN] = ei.pi->pawn_attacks(Us);
 
     // Init enemy king safety tables only if we are going to use them
     if (   pos.piece_count(Us, QUEEN)
@@ -498,7 +497,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
 				// Add pawn attacks to enemy king
         b &= ei.attackedBy[Us][PAWN];
-        ei.kingAttackersCount[Them][Us] = b ? std::min(1, popcount<Max15>(b) / 2) : 0;
+        //ei.kingAttackersCount[Them][Us] = b ? std::max(1, popcount<Max15>(b) / 2) : 0;
+				ei.kingAttackersCount[Them][Us] = b ? popcount<Max15>(b) / 2 : 0;
         ei.kingAdjacentZoneAttacksCount[Them][Us] = ei.kingAttackersWeight[Them][Us] = 0;
 
 				// Pawn defense is covered by shelter code
@@ -774,8 +774,9 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (   ei.kingAttackersCount[Them][Us] > 2
-				|| (ei.kingAttackersCount[Them][Us] > 0 && ei.kingAdjacentZoneAttacksCount[Them][Us]))
+    if (   ei.kingAttackersCount[Us][Them] > 2
+				&& ei.kingAdjacentZoneAttacksCount[Us][Them])
+//				|| (ei.kingAttackersCount[Us][Them] > 0 && ei.kingAdjacentZoneAttacksCount[Us][Them]))
     {
         // Find the attacked squares around the king which has no defenders
         // apart from the king itself
@@ -789,8 +790,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // the number and types of the enemy's attacking pieces, the number of
         // attacked and undefended squares around our king, the square of the
         // king, and the quality of the pawn shelter.
-        attackUnits =  std::min(25, (ei.kingAttackersCount[Them][Us] * ei.kingAttackersWeight[Them][Us]) / 2)
-                     + 3 * (ei.kingAdjacentZoneAttacksCount[Them][Us] + popcount<Max15>(undefended))
+        attackUnits =  std::min(25, (ei.kingAttackersCount[Us][Them] * ei.kingAttackersWeight[Us][Them]) / 2)
+                     + 3 * (ei.kingAdjacentZoneAttacksCount[Us][Them] + popcount<Max15>(undefended))
 										 + InitKingDanger[relative_square(Us, ksq)];
 										
 //				attackUnits = (attackUnits * 3) / 2;
