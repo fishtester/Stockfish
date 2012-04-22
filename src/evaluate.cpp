@@ -576,7 +576,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
                 ei.kingAdjacentZoneAttacksCount[Them][Us] += popcount<Max15>(bb);
         }
 
-				if (b & ei.kingRing[Us])
+				if (b & ei.kingRing[Us] & ~(Rank1BB | Rank8BB))
 				{
 					ei.kingAttackersCount[Us][Us]++;
 					ei.kingAttackersWeight[Us][Us] += KingAttackWeights[Piece];
