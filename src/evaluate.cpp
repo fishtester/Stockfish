@@ -497,9 +497,9 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
 				// Add pawn attacks to enemy king
         b &= ei.attackedBy[Us][PAWN];
-        //ei.kingAttackersCount[Them][Us] = b ? std::max(1, popcount<Max15>(b) / 2) : 0;
-				ei.kingAttackersCount[Them][Us] = b ? popcount<Max15>(b) / 2 : 0;
-        ei.kingAdjacentZoneAttacksCount[Them][Us] = ei.kingAttackersWeight[Them][Us] = 0;
+        ei.kingAttackersCount[Them][Us] = b ? std::max(1, popcount<Max15>(b) / 2) : 0;
+				ei.kingAdjacentZoneAttacksCount[Them][Us] = b ? KingAttackWeights[PAWN] : 0;
+				ei.kingAttackersWeight[Them][Us] = 0;
 
 				// Pawn defense is covered by shelter code
 				ei.kingAttackersCount[Them][Them] = 0;
