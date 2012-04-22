@@ -54,21 +54,21 @@ namespace {
 
     // kingAttackersCount[color] is the number of pieces of the given color
     // which attack a square in the kingRing of the enemy king.
-    int kingAttackersCount[2];
+    int kingAttackersCount[2][2];
 
     // kingAttackersWeight[color] is the sum of the "weight" of the pieces of the
     // given color which attack a square in the kingRing of the enemy king. The
     // weights of the individual piece types are given by the variables
     // QueenAttackWeight, RookAttackWeight, BishopAttackWeight and
     // KnightAttackWeight in evaluate.cpp
-    int kingAttackersWeight[2];
+    int kingAttackersWeight[2][2];
 
     // kingAdjacentZoneAttacksCount[color] is the number of attacks to squares
     // directly adjacent to the king of the given color. Pieces which attack
     // more than one square are counted multiple times. For instance, if black's
     // king is on g8 and there's a white knight on g5, this knight adds
     // 2 to kingAdjacentZoneAttacksCount[BLACK].
-    int kingAdjacentZoneAttacksCount[2];
+    int kingAdjacentZoneAttacksCount[2][2];
   };
 
   // Evaluation grain size, must be a power of 2
@@ -486,20 +486,28 @@ Value do_evaluate(const Position& pos, Value& margin) {
   void init_eval_info(const Position& pos, EvalInfo& ei) {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
-
     Bitboard b = ei.attackedBy[Them][KING] = pos.attacks_from<KING>(pos.king_square(Them));
     ei.attackedBy[Us][PAWN] = ei.pi->pawn_attacks(Us);
+    ei.attackedBy[Them][PAWN] = ei.pi->pawn_attacks(Us);
 
-    // Init king safety tables only if we are going to use them
+    // Init enemy king safety tables only if we are going to use them
     if (   pos.piece_count(Us, QUEEN)
         && pos.non_pawn_material(Us) >= QueenValueMidgame + RookValueMidgame)
     {
         ei.kingRing[Them] = (b | (Us == WHITE ? b >> 8 : b << 8));
+
+				// Add pawn attacks to enemy king
         b &= ei.attackedBy[Us][PAWN];
-        ei.kingAttackersCount[Us] = b ? popcount<Max15>(b) / 2 : 0;
-        ei.kingAdjacentZoneAttacksCount[Us] = ei.kingAttackersWeight[Us] = 0;
-    } else
-        ei.kingRing[Them] = ei.kingAttackersCount[Us] = 0;
+        ei.kingAttackersCount[Them][Us] = b ? std::min(1, popcount<Max15>(b) / 2) : 0;
+        ei.kingAdjacentZoneAttacksCount[Them][Us] = ei.kingAttackersWeight[Them][Us] = 0;
+
+				// Pawn defense is covered by shelter code
+				ei.kingAttackersCount[Them][Them] = 0;
+				ei.kingAdjacentZoneAttacksCount[Them][Them] = ei.kingAttackersWeight[Them][Them] = 0;
+    } else {
+			ei.kingRing[Them] = 0;
+			ei.kingAttackersCount[Them][Them] = ei.kingAttackersCount[Them][Us] = 0;
+		}
   }
 
 
@@ -561,12 +569,21 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
         if (b & ei.kingRing[Them])
         {
-            ei.kingAttackersCount[Us]++;
-            ei.kingAttackersWeight[Us] += KingAttackWeights[Piece];
+            ei.kingAttackersCount[Them][Us]++;
+            ei.kingAttackersWeight[Them][Us] += KingAttackWeights[Piece];
             Bitboard bb = (b & ei.attackedBy[Them][KING]);
             if (bb)
-                ei.kingAdjacentZoneAttacksCount[Us] += popcount<Max15>(bb);
+                ei.kingAdjacentZoneAttacksCount[Them][Us] += popcount<Max15>(bb);
         }
+
+				if (b & ei.kingRing[Us])
+				{
+					ei.kingAttackersCount[Us][Us]++;
+					ei.kingAttackersWeight[Us][Us] += KingAttackWeights[Piece];
+          Bitboard bb = (b & ei.attackedBy[Us][KING]);
+					if (bb)
+						ei.kingAdjacentZoneAttacksCount[Us][Us] += popcount<Max15>(bb);
+				}
 
         mob = (Piece != QUEEN ? popcount<Max15>(b & mobilityArea)
                               : popcount<Full >(b & mobilityArea));
@@ -755,17 +772,10 @@ Value do_evaluate(const Position& pos, Value& margin) {
     // King shelter and enemy pawns storm
     Score score = ei.pi->king_safety<Us>(pos, ksq);
 
-		bool otherAttack = ei.kingAdjacentZoneAttacksCount[Them];
-		if (ei.attackedBy[Them][PAWN] & ei.kingRing[Us]) {
-			ei.kingAttackersCount[Them]++;
-			ei.kingAttackersWeight[Them] += KingAttackWeights[PAWN];
-			otherAttack = true;
-		}
-		
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (   ei.kingAttackersCount[Them] >= 2
-        && otherAttack)
+    if (   ei.kingAttackersCount[Us][Them] > 2
+				|| (ei.kingAttackersCount[Us][Them] > 0 && ei.kingAdjacentZoneAttacksCount[Us][Them]))
     {
         // Find the attacked squares around the king which has no defenders
         // apart from the king itself
@@ -779,10 +789,16 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // the number and types of the enemy's attacking pieces, the number of
         // attacked and undefended squares around our king, the square of the
         // king, and the quality of the pawn shelter.
-        attackUnits =  std::min(25, (ei.kingAttackersCount[Them] * ei.kingAttackersWeight[Them]) / 2)
-                     + 3 * (ei.kingAdjacentZoneAttacksCount[Them] + popcount<Max15>(undefended))
-                     + InitKingDanger[relative_square(Us, ksq)]
-                     - mg_value(ei.pi->king_safety<Us>(pos, ksq)) / 32;
+        attackUnits =  std::min(25, (ei.kingAttackersCount[Us][Them] * ei.kingAttackersWeight[Us][Them]) / 2)
+                     + 3 * (ei.kingAdjacentZoneAttacksCount[Us][Them] + popcount<Max15>(undefended))
+										 + InitKingDanger[relative_square(Us, ksq)];
+										
+				attackUnits = (attackUnits * 3) / 2;
+										
+				attackUnits -= std::min(25, (ei.kingAttackersCount[Us][Us] * ei.kingAttackersWeight[Us][Us]) / 2)
+										 + 3 * ei.kingAdjacentZoneAttacksCount[Us][Us];
+										
+				attackUnits -= mg_value(ei.pi->king_safety<Us>(pos, ksq)) / 32;
 
         // Analyse enemy's safe queen contact checks. First find undefended
         // squares around the king attacked by enemy queen...
