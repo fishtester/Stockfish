@@ -774,7 +774,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (   ei.kingAttackersCount[Us][Them] > 2
+    if (   ei.kingAttackersCount[Us][Them] >= 2
 				&& ei.kingAdjacentZoneAttacksCount[Us][Them])
 //				|| (ei.kingAttackersCount[Us][Them] > 0 && ei.kingAdjacentZoneAttacksCount[Us][Them]))
     {
