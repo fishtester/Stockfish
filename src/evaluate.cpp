@@ -795,10 +795,10 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
 				attackUnits = (attackUnits * 3) / 2;
 
-				attackUnits -= (std::min(15, (ei.kingAttackersCount[Us][Us] * ei.kingAttackersWeight[Us][Us]) / 2)
-										 + 2 * ei.kingAdjacentZoneAttacksCount[Us][Us]) / 2;
+				attackUnits -= 3 * (std::min(15, (ei.kingAttackersCount[Us][Us] * ei.kingAttackersWeight[Us][Us]) / 2)
+										 + 2 * ei.kingAdjacentZoneAttacksCount[Us][Us]) / 4;
 
-				attackUnits -= mg_value(ei.pi->king_safety<Us>(pos, ksq)) / 32;
+				attackUnits -= mg_value(ei.pi->king_safety<Us>(pos, ksq)) / 38;
 
         // Analyse enemy's safe queen contact checks. First find undefended
         // squares around the king attacked by enemy queen...
