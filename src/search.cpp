@@ -517,6 +517,12 @@ namespace {
     }
   }
 
+  bool isSafeNull(const Position& pos, const EvalInfo& ei, Depth depth) {
+    const Color Us = pos.side_to_move();
+    const Color Them = Us == WHITE ? BLACK : WHITE;
+    return pos.non_pawn_material(Us);
+        //&& (depth < RazorDepth || !ei.pinThreat[Them]);
+  }
 
   // search<>() is the main search function for both PV and non-PV nodes and for
   // normal and SplitPoint nodes. When called just after a split point the search
@@ -690,11 +696,10 @@ namespace {
     // the score by more than futility_margin(depth) if we do a null move.
     if (   !PvNode
         && !ss->skipNullMove
-        &&  depth < RazorDepth
         && !inCheck
         &&  refinedValue - futility_margin(depth, 0) >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
-        &&  pos.non_pawn_material(pos.side_to_move()))
+        &&  isSafeNull(pos, ei, depth))
         return refinedValue - futility_margin(depth, 0);
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
@@ -704,7 +709,7 @@ namespace {
         && !inCheck
         &&  refinedValue >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
-        &&  pos.non_pawn_material(pos.side_to_move()))
+        &&  isSafeNull(pos, ei, depth))
     {
         ss->currentMove = MOVE_NULL;
 
