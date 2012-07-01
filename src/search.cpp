@@ -639,6 +639,7 @@ namespace {
     }
 
     // Step 5. Evaluate the position statically and update parent's gain statistics
+    EvalInfo ei;
     if (inCheck)
         ss->eval = ss->evalMargin = VALUE_NONE;
     else if (tte)
@@ -651,7 +652,7 @@ namespace {
     }
     else
     {
-        refinedValue = ss->eval = evaluate(pos, ss->evalMargin);
+        refinedValue = ss->eval = evaluate(pos, ss->evalMargin, ei);
         TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->eval, ss->evalMargin);
     }
 
@@ -1137,6 +1138,7 @@ split_point_start: // At split points actual search starts from here
     assert(depth <= DEPTH_ZERO);
 
     StateInfo st;
+    EvalInfo ei;
     Move ttMove, move, bestMove;
     Value ttValue, bestValue, value, evalMargin, futilityValue, futilityBase;
     bool inCheck, enoughMaterial, givesCheck, evasionPrunable;
@@ -1187,7 +1189,7 @@ split_point_start: // At split points actual search starts from here
             ss->eval = bestValue = tte->static_value();
         }
         else
-            ss->eval = bestValue = evaluate(pos, evalMargin);
+            ss->eval = bestValue = evaluate(pos, evalMargin, ei);
 
         // Stand pat. Return immediately if static value is at least beta
         if (bestValue >= beta)
@@ -1764,7 +1766,8 @@ void RootMove::insert_pv_in_tt(Position& pos) {
       // Don't overwrite existing correct entries
       if (!tte || tte->move() != pv[ply])
       {
-          v = (pos.in_check() ? VALUE_NONE : evaluate(pos, m));
+          EvalInfo ei;
+          v = (pos.in_check() ? VALUE_NONE : evaluate(pos, m, ei));
           TT.store(k, VALUE_NONE, BOUND_NONE, DEPTH_NONE, pv[ply], v, m);
       }
       pos.do_move(pv[ply], *st++);
