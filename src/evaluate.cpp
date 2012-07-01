@@ -541,8 +541,13 @@ Value do_evaluate(const Position& pos, Value& margin, EvalInfo& ei) {
 
             assert(b);
 
-            if (!more_than_one(b) && (b & pos.pieces(Them)))
+            if (!more_than_one(b)) {
+              if (b & pos.pieces(Them)) {
                 score += ThreatBonus[Piece][type_of(pos.piece_on(first_1(b)))];
+              } else if (b & ~pos.pieces(PAWN)) {
+                ei.pinThreat[Us] = true;
+              }
+            }
         }
 
         // Decrease score if we are attacked by an enemy pawn. Remaining part
@@ -687,6 +692,8 @@ Value do_evaluate(const Position& pos, Value& margin, EvalInfo& ei) {
 
     // Do not include in mobility squares protected by enemy pawns or occupied by our pieces
     const Bitboard mobilityArea = ~(ei.attackedBy[Them][PAWN] | pos.pieces(Us));
+
+    ei.pinThreat[Us] = false;
 
     score += evaluate_pieces<KNIGHT, Us, Trace>(pos, ei, mobility, mobilityArea);
     score += evaluate_pieces<BISHOP, Us, Trace>(pos, ei, mobility, mobilityArea);
