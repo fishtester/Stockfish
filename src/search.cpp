@@ -648,19 +648,8 @@ namespace {
     EvalInfo ei;
     if (inCheck)
         ss->eval = ss->evalMargin = VALUE_NONE;
-    else if (tte)
-    {
-        assert(tte->static_value() != VALUE_NONE);
-
-        ss->eval = tte->static_value();
-        ss->evalMargin = tte->static_value_margin();
-        refinedValue = refine_eval(tte, ttValue, ss->eval);
-    }
     else
-    {
         refinedValue = ss->eval = evaluate(pos, ss->evalMargin, ei);
-        TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->eval, ss->evalMargin);
-    }
 
     // Update gain for the parent non-capture move given the static position
     // evaluation before and after the move.
