@@ -520,8 +520,8 @@ namespace {
   bool isSafeNull(const Position& pos, const EvalInfo& ei, Depth depth) {
     const Color Us = pos.side_to_move();
     const Color Them = Us == WHITE ? BLACK : WHITE;
-    return pos.non_pawn_material(Us);
-        //&& (depth < RazorDepth || !ei.pinThreat[Them]);
+    return pos.non_pawn_material(Us)
+        && (depth < RazorDepth || !ei.pinThreat[Them]);
   }
 
   // search<>() is the main search function for both PV and non-PV nodes and for
@@ -696,6 +696,7 @@ namespace {
     // the score by more than futility_margin(depth) if we do a null move.
     if (   !PvNode
         && !ss->skipNullMove
+        &&  depth < RazorDepth
         && !inCheck
         &&  refinedValue - futility_margin(depth, 0) >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
