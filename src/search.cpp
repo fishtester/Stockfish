@@ -517,11 +517,11 @@ namespace {
     }
   }
 
-  bool isSafeNull(const Position& pos, const EvalInfo& ei, Depth depth) {
+  bool isSafeNull(const Position& pos, const EvalInfo& ei) {
     const Color Us = pos.side_to_move();
     const Color Them = Us == WHITE ? BLACK : WHITE;
     return pos.non_pawn_material(Us)
-        && (depth < RazorDepth || !ei.pinThreat[Them]);
+        && !ei.pinThreat[Them];
   }
 
   // search<>() is the main search function for both PV and non-PV nodes and for
@@ -648,8 +648,19 @@ namespace {
     EvalInfo ei;
     if (inCheck)
         ss->eval = ss->evalMargin = VALUE_NONE;
+    else if (tte)
+    {
+        assert(tte->static_value() != VALUE_NONE);
+        ss->eval = tte->static_value();
+        ss->evalMargin = tte->static_value_margin();
+        refinedValue = refine_eval(tte, ttValue, ss->eval);
+        ei.pinThreat[WHITE] = ei.pinThreat[BLACK] = false;
+    }
     else
+    {
         refinedValue = ss->eval = evaluate(pos, ss->evalMargin, ei);
+        TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE, ss->eval, ss->evalMargin);
+    }
 
     // Update gain for the parent non-capture move given the static position
     // evaluation before and after the move.
@@ -689,7 +700,7 @@ namespace {
         && !inCheck
         &&  refinedValue - futility_margin(depth, 0) >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
-        &&  isSafeNull(pos, ei, depth))
+        &&  isSafeNull(pos, ei))
         return refinedValue - futility_margin(depth, 0);
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
@@ -699,7 +710,7 @@ namespace {
         && !inCheck
         &&  refinedValue >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
-        &&  isSafeNull(pos, ei, depth))
+        &&  isSafeNull(pos, ei))
     {
         ss->currentMove = MOVE_NULL;
 
