@@ -544,6 +544,7 @@ Value do_evaluate(const Position& pos, Value& margin, EvalInfo& ei) {
             if (!more_than_one(b)) {
               if (b & pos.pieces(Them)) {
                 score += ThreatBonus[Piece][type_of(pos.piece_on(first_1(b)))];
+                ei.pinThreat[Us] = true;
               } else if (b & ~pos.pieces(PAWN)) {
                 ei.pinThreat[Us] = true;
               }
