@@ -651,6 +651,7 @@ namespace {
     else if (tte)
     {
         assert(tte->static_value() != VALUE_NONE);
+
         ss->eval = tte->static_value();
         ss->evalMargin = tte->static_value_margin();
         refinedValue = refine_eval(tte, ttValue, ss->eval);
