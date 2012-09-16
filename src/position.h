@@ -94,10 +94,9 @@ struct ReducedStateInfo {
 class Position {
 public:
   Position() {}
-  Position(const Position& p) { *this = p; }
   Position(const Position& p, Thread* t) { *this = p; thisThread = t; }
   Position(const std::string& f, bool c960, Thread* t) { from_fen(f, c960, t); }
-  void operator=(const Position&);
+  Position& operator=(const Position&);
 
   // Text input/output
   void from_fen(const std::string& fen, bool isChess960, Thread* th);
@@ -190,9 +189,6 @@ public:
   bool pos_is_ok(int* failedStep = NULL) const;
   void flip();
 
-  // Global initialization
-  static void init();
-
 private:
   // Initialization helpers (used while setting up a position)
   void clear();
@@ -231,14 +227,6 @@ private:
   Thread* thisThread;
   StateInfo* st;
   int chess960;
-
-  // Static variables
-  static Score pieceSquareTable[16][64]; // [piece][square]
-  static Key zobrist[2][8][64];          // [color][pieceType][square]/[piece count]
-  static Key zobEp[8];                   // [file]
-  static Key zobCastle[16];              // [castleRight]
-  static Key zobSideToMove;
-  static Key zobExclusion;
 };
 
 inline int64_t Position::nodes_searched() const {
@@ -367,7 +355,7 @@ inline Key Position::key() const {
 }
 
 inline Key Position::exclusion_key() const {
-  return st->key ^ zobExclusion;
+  return st->key ^ Zobrist::exclusion;
 }
 
 inline Key Position::pawn_key() const {

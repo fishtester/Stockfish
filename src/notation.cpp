@@ -18,14 +18,40 @@
 */
 
 #include <cassert>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
 #include "movegen.h"
+#include "notation.h"
 #include "position.h"
 
-using std::string;
+using namespace std;
 
-static const char* PieceToChar = " PNBRQK pnbrqk";
+static const char* PieceToChar = " PNBRQK  pnbrqk";
+
+
+/// score_to_uci() converts a value to a string suitable for use with the UCI
+/// protocol specifications:
+///
+/// cp <x>     The score from the engine's point of view in centipawns.
+/// mate <y>   Mate in y moves, not plies. If the engine is getting mated
+///            use negative values for y.
+
+string score_to_uci(Value v, Value alpha, Value beta) {
+
+  stringstream s;
+
+  if (abs(v) < VALUE_MATE_IN_MAX_PLY)
+      s << "cp " << v * 100 / int(PawnValueMg);
+  else
+      s << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
+
+  s << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
+
+  return s.str();
+}
+
 
 /// move_to_uci() converts a move to a string in coordinate notation
 /// (g1f3, a7a8q, etc.). The only special case is castling moves, where we print
@@ -49,7 +75,7 @@ const string move_to_uci(Move m, bool chess960) {
   string move = square_to_string(from) + square_to_string(to);
 
   if (type_of(m) == PROMOTION)
-      move += PieceToChar[promotion_type(m) + 7]; // Lower case
+      move += PieceToChar[make_piece(BLACK, promotion_type(m))]; // Lower case
 
   return move;
 }
@@ -91,24 +117,25 @@ const string move_to_san(Position& pos, Move m) {
   Square from = from_sq(m);
   Square to = to_sq(m);
   Piece pc = pos.piece_on(from);
+  PieceType pt = type_of(pc);
 
   if (type_of(m) == CASTLE)
       san = to > from ? "O-O" : "O-O-O";
   else
   {
-      if (type_of(pc) != PAWN)
+      if (pt != PAWN)
       {
-          san = PieceToChar[pc];
+          san = PieceToChar[pt]; // Upper case
 
           // Disambiguation if we have more then one piece with destination 'to'
           // note that for pawns is not needed because starting file is explicit.
           ambiguousMove = ambiguousFile = ambiguousRank = false;
 
-          attackers = (pos.attacks_from(pc, to) & pos.pieces(us)) ^ from;
+          attackers = (pos.attacks_from(pc, to) & pos.pieces(us, pt)) ^ from;
 
           while (attackers)
           {
-              Square sq = pop_1st_bit(&attackers);
+              Square sq = pop_lsb(&attackers);
 
               // Pinned pieces are not included in the possible sub-set
               if (!pos.pl_move_is_legal(make_move(sq, to), pos.pinned_pieces()))
@@ -152,4 +179,93 @@ const string move_to_san(Position& pos, Move m) {
   }
 
   return san;
+}
+
+
+/// pretty_pv() formats human-readable search information, typically to be
+/// appended to the search log file. It uses the two helpers below to pretty
+/// format time and score respectively.
+
+static string time_to_string(int64_t msecs) {
+
+  const int MSecMinute = 1000 * 60;
+  const int MSecHour   = 1000 * 60 * 60;
+
+  int64_t hours   =   msecs / MSecHour;
+  int64_t minutes =  (msecs % MSecHour) / MSecMinute;
+  int64_t seconds = ((msecs % MSecHour) % MSecMinute) / 1000;
+
+  stringstream s;
+
+  if (hours)
+      s << hours << ':';
+
+  s << setfill('0') << setw(2) << minutes << ':' << setw(2) << seconds;
+
+  return s.str();
+}
+
+static string score_to_string(Value v) {
+
+  stringstream s;
+
+  if (v >= VALUE_MATE_IN_MAX_PLY)
+      s << "#" << (VALUE_MATE - v + 1) / 2;
+
+  else if (v <= VALUE_MATED_IN_MAX_PLY)
+      s << "-#" << (VALUE_MATE + v) / 2;
+
+  else
+      s << setprecision(2) << fixed << showpos << float(v) / PawnValueMg;
+
+  return s.str();
+}
+
+string pretty_pv(Position& pos, int depth, Value value, int64_t msecs, Move pv[]) {
+
+  const int64_t K = 1000;
+  const int64_t M = 1000000;
+
+  StateInfo state[MAX_PLY_PLUS_2], *st = state;
+  Move* m = pv;
+  string san, padding;
+  size_t length;
+  stringstream s;
+
+  s << setw(2) << depth
+    << setw(8) << score_to_string(value)
+    << setw(8) << time_to_string(msecs);
+
+  if (pos.nodes_searched() < M)
+      s << setw(8) << pos.nodes_searched() / 1 << "  ";
+
+  else if (pos.nodes_searched() < K * M)
+      s << setw(7) << pos.nodes_searched() / K << "K  ";
+
+  else
+      s << setw(7) << pos.nodes_searched() / M << "M  ";
+
+  padding = string(s.str().length(), ' ');
+  length = padding.length();
+
+  while (*m != MOVE_NONE)
+  {
+      san = move_to_san(pos, *m);
+
+      if (length + san.length() > 80)
+      {
+          s << "\n" + padding;
+          length = padding.length();
+      }
+
+      s << san << ' ';
+      length += san.length() + 1;
+
+      pos.do_move(*m++, *st++);
+  }
+
+  while (m != pv)
+      pos.undo_move(*--m);
+
+  return s.str();
 }

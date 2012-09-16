@@ -166,7 +166,15 @@ enum Value {
   VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + MAX_PLY,
 
   VALUE_ENSURE_INTEGER_SIZE_P = INT_MAX,
-  VALUE_ENSURE_INTEGER_SIZE_N = INT_MIN
+  VALUE_ENSURE_INTEGER_SIZE_N = INT_MIN,
+
+  Mg = 0, Eg = 1,
+
+  PawnValueMg   = 198,   PawnValueEg   = 258,
+  KnightValueMg = 817,   KnightValueEg = 846,
+  BishopValueMg = 836,   BishopValueEg = 857,
+  RookValueMg   = 1270,  RookValueEg   = 1278,
+  QueenValueMg  = 2521,  QueenValueEg  = 2558
 };
 
 enum PieceType {
@@ -310,20 +318,22 @@ inline Score apply_weight(Score v, Score w) {
 #undef ENABLE_OPERATORS_ON
 #undef ENABLE_SAFE_OPERATORS_ON
 
-const Value PawnValueMidgame   = Value(198);
-const Value PawnValueEndgame   = Value(258);
-const Value KnightValueMidgame = Value(817);
-const Value KnightValueEndgame = Value(846);
-const Value BishopValueMidgame = Value(836);
-const Value BishopValueEndgame = Value(857);
-const Value RookValueMidgame   = Value(1270);
-const Value RookValueEndgame   = Value(1278);
-const Value QueenValueMidgame  = Value(2521);
-const Value QueenValueEndgame  = Value(2558);
+namespace Zobrist {
 
-extern const Value PieceValueMidgame[17]; // Indexed by Piece or PieceType
-extern const Value PieceValueEndgame[17];
-extern int SquareDistance[64][64];
+  extern Key psq[2][8][64]; // [color][pieceType][square / piece count]
+  extern Key enpassant[8];  // [file]
+  extern Key castle[16];    // [castleRight]
+  extern Key side;
+  extern Key exclusion;
+
+  void init();
+}
+
+CACHE_LINE_ALIGNMENT
+
+extern Score pieceSquareTable[16][64]; // [piece][square]
+extern Value PieceValue[2][18];        // [Mg / Eg][piece / pieceType]
+extern int SquareDistance[64][64];     // [square][square]
 
 struct MoveStack {
   Move move;

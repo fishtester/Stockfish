@@ -23,6 +23,7 @@
 
 #include "bitboard.h"
 #include "bitcount.h"
+#include "misc.h"
 #include "rkiss.h"
 
 CACHE_LINE_ALIGNMENT
@@ -55,6 +56,10 @@ int SquareDistance[64][64];
 
 namespace {
 
+  // De Bruijn sequences. See chessprogramming.wikispaces.com/BitScan
+  const uint64_t DeBruijn_64 = 0x218A392CD3D5DBFULL;
+  const uint32_t DeBruijn_32 = 0x783A9B23;
+
   CACHE_LINE_ALIGNMENT
 
   int BSFTable[64];
@@ -69,40 +74,35 @@ namespace {
                    Bitboard masks[], unsigned shifts[], Square deltas[], Fn index);
 }
 
-/// first_1() finds the least significant nonzero bit in a nonzero bitboard.
-/// pop_1st_bit() finds and clears the least significant nonzero bit in a
-/// nonzero bitboard.
+/// lsb()/msb() finds the least/most significant bit in a nonzero bitboard.
+/// pop_lsb() finds and clears the least significant bit in a nonzero bitboard.
 
-#if defined(IS_64BIT) && !defined(USE_BSFQ)
+#if !defined(USE_BSFQ)
 
-Square first_1(Bitboard b) {
-  return Square(BSFTable[((b & -b) * 0x218A392CD3D5DBFULL) >> 58]);
-}
+Square lsb(Bitboard b) {
 
-Square pop_1st_bit(Bitboard* b) {
-  Bitboard bb = *b;
-  *b &= (*b - 1);
-  return Square(BSFTable[((bb & -bb) * 0x218A392CD3D5DBFULL) >> 58]);
-}
+  if (Is64Bit)
+      return Square(BSFTable[((b & -b) * DeBruijn_64) >> 58]);
 
-#elif !defined(USE_BSFQ)
-
-Square first_1(Bitboard b) {
   b ^= (b - 1);
   uint32_t fold = unsigned(b) ^ unsigned(b >> 32);
-  return Square(BSFTable[(fold * 0x783A9B23) >> 26]);
+  return Square(BSFTable[(fold * DeBruijn_32) >> 26]);
 }
 
-Square pop_1st_bit(Bitboard* b) {
+Square pop_lsb(Bitboard* b) {
 
   Bitboard bb = *b;
   *b = bb & (bb - 1);
+
+  if (Is64Bit)
+      return Square(BSFTable[((bb & -bb) * DeBruijn_64) >> 58]);
+
   bb ^= (bb - 1);
   uint32_t fold = unsigned(bb) ^ unsigned(bb >> 32);
-  return Square(BSFTable[(fold * 0x783A9B23) >> 26]);
+  return Square(BSFTable[(fold * DeBruijn_32) >> 26]);
 }
 
-Square last_1(Bitboard b) {
+Square msb(Bitboard b) {
 
   unsigned b32;
   int result = 0;
@@ -138,6 +138,8 @@ Square last_1(Bitboard b) {
 
 void Bitboards::print(Bitboard b) {
 
+  sync_cout;
+
   for (Rank rank = RANK_8; rank >= RANK_1; rank--)
   {
       std::cout << "+---+---+---+---+---+---+---+---+" << '\n';
@@ -147,7 +149,7 @@ void Bitboards::print(Bitboard b) {
 
       std::cout << "|\n";
   }
-  std::cout << "+---+---+---+---+---+---+---+---+" << std::endl;
+  std::cout << "+---+---+---+---+---+---+---+---+" << sync_endl;
 }
 
 
@@ -208,10 +210,10 @@ void Bitboards::init() {
           Bitboard b = 1ULL << i;
           b ^= b - 1;
           b ^= b >> 32;
-          BSFTable[(uint32_t)(b * 0x783A9B23) >> 26] = i;
+          BSFTable[(uint32_t)(b * DeBruijn_32) >> 26] = i;
       }
       else
-          BSFTable[((1ULL << i) * 0x218A392CD3D5DBFULL) >> 58] = i;
+          BSFTable[((1ULL << i) * DeBruijn_64) >> 58] = i;
 
   int steps[][9] = { {}, { 7, 9 }, { 17, 15, 10, 6, -6, -10, -15, -17 },
                      {}, {}, {}, { 9, 7, -7, -9, 8, 1, -1, -8 } };

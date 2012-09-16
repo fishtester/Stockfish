@@ -20,11 +20,18 @@
 ### Section 1. General Configuration
 ### ==========================================================================
 
+### Establish the operating system name
+UNAME = $(shell uname)
+
 ### Executable name
 EXE = stockfish
 
 ### Installation dir definitions
 PREFIX = /usr/local
+# Haiku has a non-standard filesystem layout
+ifeq ($(UNAME),Haiku)
+	PREFIX=/boot/common
+endif
 BINDIR = $(PREFIX)/bin
 
 ### Built-in benchmark for pgo-builds
@@ -229,7 +236,10 @@ LDFLAGS = $(EXTRALDFLAGS)
 
 ### On mingw use Windows threads, otherwise POSIX
 ifneq ($(comp),mingw)
-	LDFLAGS += -lpthread
+	# Haiku has pthreads in its libroot, so only link it in on other platforms
+	ifneq ($(UNAME),Haiku)
+		LDFLAGS += -lpthread
+	endif
 endif
 
 ifeq ($(os),osx)
@@ -270,7 +280,8 @@ ifeq ($(optimize),yes)
 	endif
 
 	ifeq ($(comp),clang)
-		CXXFLAGS += -O4
+		### -O4 requires a linker that supports LLVM's LTO
+		CXXFLAGS += -O3
 
 		ifeq ($(os),osx)
 			ifeq ($(arch),i386)
@@ -310,11 +321,13 @@ endif
 ### This is a mix of compile and link time options because the lto link phase
 ### needs access to the optimization flags.
 ifeq ($(comp),gcc)
-	GCC_MAJOR := `$(CXX) -dumpversion | cut -f1 -d.`
-	GCC_MINOR := `$(CXX) -dumpversion | cut -f2 -d.`
-	ifeq (1,$(shell expr \( $(GCC_MAJOR) \> 4 \) \| \( $(GCC_MAJOR) \= 4 \& $(GCC_MINOR) \>= 5 \)))
-		CXXFLAGS += -flto
-		LDFLAGS += $(CXXFLAGS)
+	ifeq ($(optimize),yes)
+		GCC_MAJOR := `$(CXX) -dumpversion | cut -f1 -d.`
+		GCC_MINOR := `$(CXX) -dumpversion | cut -f2 -d.`
+		ifeq (1,$(shell expr \( $(GCC_MAJOR) \> 4 \) \| \( $(GCC_MAJOR) \= 4 \& $(GCC_MINOR) \>= 5 \)))
+			CXXFLAGS += -flto
+			LDFLAGS += $(CXXFLAGS)
+		endif
 	endif
 endif
 
