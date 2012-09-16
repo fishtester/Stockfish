@@ -925,11 +925,16 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // on the same rank and a bit smaller if it's on the previous rank.
         // Apply an extra bonus if the supporter is also passed.
         supportingPawns = pos.pieces(Us, PAWN) & adjacent_files_bb(file_of(s));
-        if (supportingPawns & rank_bb(s))
-            ebonus += Value(r * (ei.pi->passed_pawns(Us) & supportingPawns) ? 30 : 20);
-
-        else if (supportingPawns & rank_bb(s - pawn_push(Us)))
-            ebonus += Value(r * (ei.pi->passed_pawns(Us) & supportingPawns) ? 20 : 12);
+        if (supportingPawns & rank_bb(s)) {
+            ebonus += Value(r * 15);
+            if (rr && (ei.pi->passed_pawns(Us) & supportingPawns))
+                ebonus += Value(rr * 5);
+        }
+        else if (supportingPawns & rank_bb(s - pawn_push(Us))) {
+            ebonus += Value(r * 8);
+            if (rr && (ei.pi->passed_pawns(Us) & supportingPawns))
+                ebonus += Value(rr * 4);
+        }
 
         // Rook pawns are a special case: They are sometimes worse, and
         // sometimes better than other passed pawns. It is difficult to find
