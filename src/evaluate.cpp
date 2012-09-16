@@ -928,12 +928,12 @@ Value do_evaluate(const Position& pos, Value& margin) {
         if (supportingPawns & rank_bb(s)) {
             ebonus += Value(r * 15);
             if (rr && (ei.pi->passed_pawns(Us) & supportingPawns))
-                ebonus += Value(rr * 5);
+                ebonus += Value(rr * 10);
         }
         else if (supportingPawns & rank_bb(s - pawn_push(Us))) {
-            ebonus += Value(r * 8);
+            ebonus += Value(r * 9);
             if (rr && (ei.pi->passed_pawns(Us) & supportingPawns))
-                ebonus += Value(rr * 4);
+                ebonus += Value(rr * 7);
         }
 
         // Rook pawns are a special case: They are sometimes worse, and
