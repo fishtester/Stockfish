@@ -88,6 +88,14 @@ void init(OptionsMap& o) {
   o["Slow Mover"]                  = Option(100, 10, 1000);
   o["UCI_Chess960"]                = Option(false);
   o["UCI_AnalyseMode"]             = Option(false, on_eval);
+  o["ppbm"] = Option(20, 0, 50, on_eval);
+  o["ppbe"] = Option(10, 0, 25, on_eval);
+  o["ppke1"] = Option(5, 0, 20, on_eval);
+  o["ppke2"] = Option(2, 0, 10, on_eval);
+  o["ppbig1"] = Option(17, 0, 25, on_eval);
+  o["ppbig2"] = Option(13, 0, 25, on_eval);
+  o["ppr1"] = Option(15, 0, 25, on_eval);
+  o["ppr2"] = Option(9, 0, 20, on_eval);
 }
 
 

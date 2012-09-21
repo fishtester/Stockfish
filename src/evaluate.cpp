@@ -258,6 +258,16 @@ namespace {
   double to_cp(Value v);
   void trace_add(int idx, Score term_w, Score term_b = SCORE_ZERO);
   void trace_row(const char* name, int idx);
+
+
+  int ppbm = 20;
+  int ppbe = 10;
+  int ppke1 = 5;
+  int ppke2 = 2;
+  int ppbig1 = 17;
+  int ppbig2 = 13;
+  int ppr1 = 15;
+  int ppr2 = 9;
 }
 
 
@@ -279,11 +289,21 @@ namespace Eval {
 
   void init() {
 
+    ppbm = Options["ppbm"]; 
+    ppbe = Options["ppbe"];
+    ppke1 = Options["ppke1"];
+    ppke2 = Options["ppke2"];
+    ppbig1 = Options["ppbig1"];
+    ppbig2 = Options["ppbig2"];
+    ppr1 = Options["ppr1"];
+    ppr2 = Options["ppr2"];
+
     Weights[Mobility]       = weight_option("Mobility (Middle Game)", "Mobility (Endgame)", WeightsInternal[Mobility]);
     Weights[PassedPawns]    = weight_option("Passed Pawns (Middle Game)", "Passed Pawns (Endgame)", WeightsInternal[PassedPawns]);
     Weights[Space]          = weight_option("Space", "Space", WeightsInternal[Space]);
     Weights[KingDangerUs]   = weight_option("Cowardice", "Cowardice", WeightsInternal[KingDangerUs]);
     Weights[KingDangerThem] = weight_option("Aggressiveness", "Aggressiveness", WeightsInternal[KingDangerThem]);
+
 
     // King safety is asymmetrical. Our king danger level is weighted by
     // "Cowardice" UCI parameter, instead the opponent one by "Aggressiveness".
@@ -853,7 +873,6 @@ Value do_evaluate(const Position& pos, Value& margin) {
     return score;
   }
 
-
   // evaluate_passed_pawns<>() evaluates the passed pawns of the given color
 
   template<Color Us>
@@ -878,16 +897,16 @@ Value do_evaluate(const Position& pos, Value& margin) {
         int rr = r * (r - 1);
 
         // Base bonus based on rank
-        Value mbonus = Value(20 * rr);
-        Value ebonus = Value(10 * (rr + r + 1));
+        Value mbonus = Value(ppbm * rr);
+        Value ebonus = Value(ppbe * (rr + r + 1));
 
         if (rr)
         {
             Square blockSq = s + pawn_push(Us);
 
             // Adjust bonus based on kings proximity
-            ebonus += Value(square_distance(pos.king_square(Them), blockSq) * 5 * rr);
-            ebonus -= Value(square_distance(pos.king_square(Us), blockSq) * 2 * rr);
+            ebonus += Value(square_distance(pos.king_square(Them), blockSq) * ppke1 * rr);
+            ebonus -= Value(square_distance(pos.king_square(Us), blockSq) * ppke2 * rr);
 
             // If blockSq is not the queening square then consider also a second push
             if (rank_of(blockSq) != (Us == WHITE ? RANK_8 : RANK_1))
@@ -911,13 +930,13 @@ Value do_evaluate(const Position& pos, Value& margin) {
                 // If there aren't enemy attacks or pieces along the path to queen give
                 // huge bonus. Even bigger if we protect the pawn's path.
                 if (!unsafeSquares)
-                    ebonus += Value(rr * (squaresToQueen == defendedSquares ? 17 : 15));
+                    ebonus += Value(rr * (squaresToQueen == defendedSquares ? ppbig1 : ppbig1 - 2));
                 else
                     // OK, there are enemy attacks or pieces (but not pawns). Are those
                     // squares which are attacked by the enemy also attacked by us ?
                     // If yes, big bonus (but smaller than when there are no enemy attacks),
                     // if no, somewhat smaller bonus.
-                    ebonus += Value(rr * ((unsafeSquares & defendedSquares) == unsafeSquares ? 13 : 8));
+                    ebonus += Value(rr * ((unsafeSquares & defendedSquares) == unsafeSquares ? ppbig2 : ppbig2 - 5));
             }
         } // rr != 0
 
@@ -926,14 +945,14 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // Apply an extra bonus if the supporter is also passed.
         supportingPawns = pos.pieces(Us, PAWN) & adjacent_files_bb(file_of(s));
         if (supportingPawns & rank_bb(s)) {
-            ebonus += Value(r * 15);
+            ebonus += Value(r * ppr1);
             if (rr && (ei.pi->passed_pawns(Us) & supportingPawns))
-                ebonus += Value(rr * 10);
+                ebonus += Value(rr * (ppr1 - 5));
         }
         else if (supportingPawns & rank_bb(s - pawn_push(Us))) {
-            ebonus += Value(r * 9);
+            ebonus += Value(r * ppr2);
             if (rr && (ei.pi->passed_pawns(Us) & supportingPawns))
-                ebonus += Value(rr * 7);
+                ebonus += Value(rr * (ppr2 - 2));
         }
 
         // Rook pawns are a special case: They are sometimes worse, and
