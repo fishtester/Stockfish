@@ -62,27 +62,8 @@ namespace {
   const bool Slidings[18] = { 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1 };
   inline bool piece_is_slider(Piece p) { return Slidings[p]; }
 
-  // Maximum depth for razoring
-  const Depth RazorDepth = 4 * ONE_PLY;
-
   // Dynamic razoring margin based on depth
   inline Value razor_margin(Depth d) { return Value(512 + 16 * int(d)); }
-
-  // Maximum depth for use of dynamic threat detection when null move fails low
-  const Depth ThreatDepth = 5 * ONE_PLY;
-
-  // Minimum depth for use of internal iterative deepening
-  const Depth IIDDepth[] = { 8 * ONE_PLY, 5 * ONE_PLY };
-
-  // At Non-PV nodes we do an internal iterative deepening search
-  // when the static evaluation is bigger then beta - IIDMargin.
-  const Value IIDMargin = Value(256);
-
-  // Minimum depth for use of singular extension
-  const Depth SingularExtensionDepth[] = { 8 * ONE_PLY, 6 * ONE_PLY };
-
-  // Futility margin for quiescence search
-  const Value FutilityMarginQS = Value(128);
 
   // Futility lookup tables (initialized at startup) and their access functions
   Value FutilityMargins[16][64]; // [depth][moveNumber]
@@ -106,10 +87,6 @@ namespace {
 
     return (Depth) Reductions[PvNode][std::min(int(d) / ONE_PLY, 63)][std::min(mn, 63)];
   }
-
-  // Easy move margin. An easy move candidate must be at least this much better
-  // than the second best move.
-  const Value EasyMoveMargin = Value(0x150);
 
   // This is the minimum interval in msec between two check_time() calls
   const int TimerResolution = 5;
@@ -469,7 +446,7 @@ namespace {
                 && (   (bestMoveNeverChanged &&  pos.captured_piece_type())
                     || Time::now() - SearchTime > (TimeMgr.available_time() * 40) / 100))
             {
-                Value rBeta = bestValue - EasyMoveMargin;
+                Value rBeta = bestValue - 2 * PawnValueMg;
                 (ss+1)->excludedMove = RootMoves[0].pv[0];
                 (ss+1)->skipNullMove = true;
                 Value v = search<NonPV>(pos, ss+1, rBeta - 1, rBeta, (depth - 3) * ONE_PLY);
@@ -652,7 +629,7 @@ namespace {
 
     // Step 6. Razoring (is omitted in PV nodes)
     if (   !PvNode
-        &&  depth < RazorDepth
+        &&  depth < 4 * ONE_PLY
         && !inCheck
         &&  refinedValue + razor_margin(depth) < beta
         &&  ttMove == MOVE_NONE
@@ -672,7 +649,7 @@ namespace {
     // the score by more than futility_margin(depth) if we do a null move.
     if (   !PvNode
         && !ss->skipNullMove
-        &&  depth < RazorDepth
+        &&  depth < 4 * ONE_PLY
         && !inCheck
         &&  refinedValue - futility_margin(depth, 0) >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
@@ -731,7 +708,7 @@ namespace {
             // parent node, which will trigger a re-search with full depth).
             threatMove = (ss+1)->currentMove;
 
-            if (   depth < ThreatDepth
+            if (   depth < 5 * ONE_PLY
                 && (ss-1)->reduction
                 && threatMove != MOVE_NONE
                 && connected_moves(pos, (ss-1)->currentMove, threatMove))
@@ -744,7 +721,7 @@ namespace {
     // and a reduced search returns a value much above beta, we can (almost) safely
     // prune the previous move.
     if (   !PvNode
-        &&  depth >= RazorDepth + ONE_PLY
+        &&  depth >= 5 * ONE_PLY
         && !inCheck
         && !ss->skipNullMove
         &&  excludedMove == MOVE_NONE
@@ -773,9 +750,9 @@ namespace {
     }
 
     // Step 10. Internal iterative deepening
-    if (   depth >= IIDDepth[PvNode]
+    if (   depth >= (PvNode ? 5 * ONE_PLY : 8 * ONE_PLY)
         && ttMove == MOVE_NONE
-        && (PvNode || (!inCheck && ss->eval + IIDMargin >= beta)))
+        && (PvNode || (!inCheck && ss->eval + Value(256) >= beta)))
     {
         Depth d = (PvNode ? depth - 2 * ONE_PLY : depth / 2);
 
@@ -794,7 +771,7 @@ split_point_start: // At split points actual search starts from here
     value = bestValue; // Workaround a bogus 'uninitialized' warning under gcc
     singularExtensionNode =   !RootNode
                            && !SpNode
-                           &&  depth >= SingularExtensionDepth[PvNode]
+                           &&  depth >= (PvNode ? 6 * ONE_PLY : 8 * ONE_PLY)
                            &&  ttMove != MOVE_NONE
                            && !excludedMove // Recursive singular search is not allowed
                            && (tte->type() & BOUND_LOWER)
@@ -1184,7 +1161,7 @@ split_point_start: // At split points actual search starts from here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        futilityBase = ss->eval + evalMargin + FutilityMarginQS;
+        futilityBase = ss->eval + evalMargin + Value(128);
         enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMg;
     }
 
@@ -1522,7 +1499,7 @@ split_point_start: // At split points actual search starts from here
         int s = RootMoves[i].score;
 
         // Don't allow crazy blunders even at very low skills
-        if (i > 0 && RootMoves[i-1].score > s + EasyMoveMargin)
+        if (i > 0 && RootMoves[i-1].score > s + 2 * PawnValueMg)
             break;
 
         // This is our magic formula
