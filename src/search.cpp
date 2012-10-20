@@ -284,7 +284,7 @@ namespace {
   void id_loop(Position& pos) {
 
     Stack ss[MAX_PLY_PLUS_2];
-    int depth, prevBestMoveChanges;
+    int depth, prevBestMoveChanges, failHighDepth = -1;
     Value bestValue, alpha, beta, delta;
     bool bestMoveNeverChanged = true;
     Move skillBest = MOVE_NONE;
@@ -329,6 +329,11 @@ namespace {
                 // needed by update gains and ss copy when splitting at Root.
                 bestValue = search<Root>(pos, ss+1, alpha, beta, depth * ONE_PLY);
 
+                if (failHighDepth != -1) {
+                    depth = failHighDepth;
+                    failHighDepth = -1;
+                }
+
                 // Bring to front the best move. It is critical that sorting is
                 // done with a stable algorithm because all the values but the first
                 // and eventually the new best one are set to -VALUE_INFINITE and
@@ -366,6 +371,11 @@ namespace {
                 {
                     beta += delta;
                     delta += delta / 2;
+
+                    if (depth > 10) {
+                        failHighDepth = depth;
+                        depth = depth - 5;
+                    }
                 }
                 else if (bestValue <= alpha)
                 {
