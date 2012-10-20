@@ -372,9 +372,9 @@ namespace {
                     beta += delta;
                     delta += delta / 2;
 
-                    if (depth > 10) {
+                    if (depth > 10 && delta > 32) {
                         failHighDepth = depth;
-                        depth = depth - 2;
+                        depth = depth - 4;
                     }
                 }
                 else if (bestValue <= alpha)
