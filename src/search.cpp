@@ -374,7 +374,7 @@ namespace {
 
                     if (depth > 10) {
                         failHighDepth = depth;
-                        depth = depth - 5;
+                        depth = depth - 2;
                     }
                 }
                 else if (bestValue <= alpha)
