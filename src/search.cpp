@@ -284,7 +284,7 @@ namespace {
   void id_loop(Position& pos) {
 
     Stack ss[MAX_PLY_PLUS_2];
-    int depth, prevBestMoveChanges, failHighDepth = -1;
+    int depth, prevBestMoveChanges;
     Value bestValue, alpha, beta, delta;
     bool bestMoveNeverChanged = true;
     Move skillBest = MOVE_NONE;
@@ -308,6 +308,8 @@ namespace {
         // MultiPV loop. We perform a full root search for each PV line
         for (PVIdx = 0; PVIdx < std::min(MultiPV, RootMoves.size()); PVIdx++)
         {
+            int failHighDepth = -1;
+
             // Set aspiration window default width
             if (depth >= 5 && abs(RootMoves[PVIdx].prevScore) < VALUE_KNOWN_WIN)
             {
@@ -329,9 +331,12 @@ namespace {
                 // needed by update gains and ss copy when splitting at Root.
                 bestValue = search<Root>(pos, ss+1, alpha, beta, depth * ONE_PLY);
 
+                bool isPV = bestValue > alpha && bestValue < beta;
                 if (failHighDepth != -1) {
                     depth = failHighDepth;
                     failHighDepth = -1;
+                    if (isPV)
+                        continue;
                 }
 
                 // Bring to front the best move. It is critical that sorting is
@@ -346,7 +351,7 @@ namespace {
                 // the fail high/low loop then reorder the PV moves, otherwise
                 // leave the last PV move in its position so to be searched again.
                 // Of course this is needed only in MultiPV search.
-                if (PVIdx && bestValue > alpha && bestValue < beta)
+                if (PVIdx && isPV)
                     sort<RootMove>(RootMoves.begin(), RootMoves.begin() + PVIdx);
 
                 // Write PV back to transposition table in case the relevant
@@ -362,7 +367,7 @@ namespace {
 
                 // Send full PV info to GUI if we are going to leave the loop or
                 // if we have a fail high/low and we are deep in the search.
-                if ((bestValue > alpha && bestValue < beta) || Time::now() - SearchTime > 2000)
+                if (isPV || Time::now() - SearchTime > 2000)
                     sync_cout << uci_pv(pos, depth, alpha, beta) << sync_endl;
 
                 // In case of failing high/low increase aspiration window and
@@ -372,9 +377,9 @@ namespace {
                     beta += delta;
                     delta += delta / 2;
 
-                    if (depth > 10 && delta > 32) {
+                    if (depth >= 8) {
                         failHighDepth = depth;
-                        depth = depth - 4;
+                        depth = depth - (depth / 4);
                     }
                 }
                 else if (bestValue <= alpha)
