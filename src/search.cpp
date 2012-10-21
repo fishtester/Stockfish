@@ -377,7 +377,7 @@ namespace {
                     beta += delta;
                     delta += delta / 2;
 
-                    if (depth >= 8) {
+                    if (depth >= 8 && delta >= 32) {
                         failHighDepth = depth;
                         depth = depth - (depth / 4);
                     }
