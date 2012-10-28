@@ -377,9 +377,9 @@ namespace {
                     beta += delta;
                     delta += delta / 2;
 
-                    if (depth >= 10 && delta >= 32 && BestMoveChanges) {
+                    if (depth >= 8 && delta > 32 && BestMoveChanges) {
                         failHighDepth = depth;
-                        depth = depth - 2;
+                        depth = depth - (depth / 4);
                     }
                 }
                 else if (bestValue <= alpha)
