@@ -204,12 +204,13 @@ MaterialEntry* MaterialTable::probe(const Position& pos) {
   }
 
   // Compute the space weight
-  if (npm_w + npm_b >= 2 * QueenValueMg + 4 * RookValueMg + 2 * KnightValueMg)
+  if (npm_w + npm_b >= 2 * QueenValueMg + 2 * RookValueMg + 2 * KnightValueMg)
   {
       int minorPieceCount =  pos.piece_count(WHITE, KNIGHT) + pos.piece_count(WHITE, BISHOP)
                            + pos.piece_count(BLACK, KNIGHT) + pos.piece_count(BLACK, BISHOP);
+      int rookCount =  pos.piece_count(WHITE, ROOK) + pos.piece_count(BLACK, ROOK);
 
-      e->spaceWeight = minorPieceCount * minorPieceCount;
+      e->spaceWeight = minorPieceCount * minorPieceCount + rookCount * rookCount;
   }
 
   // Evaluate the material imbalance. We use PIECE_TYPE_NONE as a place holder
