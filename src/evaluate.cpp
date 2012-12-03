@@ -1158,6 +1158,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
     Bitboard behind = pos.pieces(Us, PAWN);
     behind |= (Us == WHITE ? behind >>  8 : behind <<  8);
     behind |= (Us == WHITE ? behind >> 16 : behind << 16);
+    behind |= (Us == WHITE ? behind >> 24 : behind << 24);
 
     return popcount<Max15>(safe & SpaceMask[Us]) + popcount<Full>(behind & safe);
   }
