@@ -101,7 +101,7 @@ namespace {
      { S(-25,-30), S(-11,-16), S(  3, -2), S(17, 12), S(31, 26), S(45, 40), // Bishops
        S( 57, 52), S( 65, 60), S( 71, 65), S(74, 69), S(76, 71), S(78, 73),
        S( 79, 74), S( 80, 75), S( 81, 76), S(81, 76) },
-     { S(-20,-36), S(-14,-19), S( -8, -3), S(-2, 13), S( 4, 29), S(10, 46), // Rooks
+     { S(-60,-110), S(-30,-70), S( -15, -40), S(-2, 0), S( 4, 29), S(10, 46), // Rooks
        S( 14, 62), S( 19, 79), S( 23, 95), S(26,106), S(27,111), S(28,114),
        S( 29,116), S( 30,117), S( 31,118), S(32,118) },
      { S(-10,-18), S( -8,-13), S( -6, -7), S(-3, -2), S(-1,  3), S( 1,  8), // Queens
@@ -167,7 +167,7 @@ namespace {
 
   // Penalty for rooks trapped inside a friendly king which has lost the
   // right to castle.
-  const Value TrappedRookPenalty = Value(180);
+  const Value TrappedRookPenalty = Value(120);
 
   // Penalty for a bishop on a1/h1 (a8/h8 for black) which is trapped by
   // a friendly pawn on b2/g2 (b7/g7 for black). This can obviously only
