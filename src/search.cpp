@@ -1109,7 +1109,7 @@ split_point_start: // At split points actual search starts from here
     Key posKey;
     Move ttMove, move, bestMove;
     Value bestValue, value, ttValue, futilityValue, futilityBase, oldAlpha;
-    bool givesCheck, enoughMaterial, evasionPrunable, fromNull;
+    bool givesCheck, enoughMaterial, evasionPrunable;
     Depth ttDepth;
 
     // To flag BOUND_EXACT a node with eval above alpha and no available moves
@@ -1118,7 +1118,6 @@ split_point_start: // At split points actual search starts from here
 
     ss->currentMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
-    fromNull = (ss-1)->currentMove == MOVE_NULL;
 
     // Check for an instant draw or maximum ply reached
     if (pos.is_draw<false, false>() || ss->ply > MAX_PLY)
@@ -1179,7 +1178,8 @@ split_point_start: // At split points actual search starts from here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        futilityBase = ss->staticEval + ss->evalMargin + Value(128);
+        futilityBase =   ss->staticEval + ss->evalMargin + Value(128)
+                       - ((ss-1)->currentMove == MOVE_NULL ? PawnValueMg : VALUE_ZERO);
         enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMg;
     }
 
@@ -1208,8 +1208,7 @@ split_point_start: // At split points actual search starts from here
       {
           futilityValue =  futilityBase
                          + PieceValue[EG][pos.piece_on(to_sq(move))]
-                         + (type_of(move) == ENPASSANT ? PawnValueEg : VALUE_ZERO)
-                         - (fromNull ? PawnValueMg : VALUE_ZERO);
+                         + (type_of(move) == ENPASSANT ? PawnValueEg : VALUE_ZERO);
 
           if (futilityValue < beta)
           {
