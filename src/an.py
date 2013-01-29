@@ -56,13 +56,19 @@ def avg_movecount(stats):
     return result / cnt
   return 0
 
+def exit_types(stats):
+  results = defaultdict(int)
+  for s in stats:
+    results[s[S_EXIT_TYPE]] += 1
+  return results
+
 def main():
   stats = parse_stats()
   d = filter_depth(stats)
   for k,v in d.iteritems():
-    print k
     all, cut = filter_all_cut(v)
-    print 'all: %d %d cut: %d %d' % (len(all), avg_movecount(all), len(cut), avg_movecount(cut))
+    print 'depth %d all %d cut %d' % (k, avg_movecount(all), avg_movecount(cut))
+    print exit_types(all), exit_types(cut)
 
   return
 
