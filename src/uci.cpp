@@ -44,7 +44,7 @@ namespace {
 
   void set_option(istringstream& up);
   void set_position(Position& pos, istringstream& up);
-  void go(Position& pos, istringstream& up);
+  void go(const Position& pos, istringstream& up);
 }
 
 
@@ -66,23 +66,20 @@ void UCI::loop(const string& args) {
 
       is >> skipws >> token;
 
-      if (token == "quit" || token == "stop")
+      if (token == "quit" || token == "stop" || token == "ponderhit")
       {
-          Search::Signals.stop = true;
-          Threads.main_thread()->wake_up(); // Could be sleeping
-      }
-      else if (token == "ponderhit")
-      {
-          // The opponent has played the expected move. GUI sends "ponderhit" if
-          // we were told to ponder on the same move the opponent has played. We
-          // should continue searching but switching from pondering to normal search.
-          Search::Limits.ponder = false;
-
-          if (Search::Signals.stopOnPonderhit)
+          // GUI sends 'ponderhit' to tell us to ponder on the same move the
+          // opponent has played. In case Signals.stopOnPonderhit is set we are
+          // waiting for 'ponderhit' to stop the search (for instance because we
+          // already ran out of time), otherwise we should continue searching but
+          // switching from pondering to normal search.
+          if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
           {
               Search::Signals.stop = true;
-              Threads.main_thread()->wake_up(); // Could be sleeping
+              Threads.main_thread()->notify_one(); // Could be sleeping
           }
+          else
+              Search::Limits.ponder = false;
       }
       else if (token == "perft" && (is >> token)) // Read perft depth
       {
@@ -116,7 +113,7 @@ void UCI::loop(const string& args) {
 
   } while (token != "quit" && args.empty()); // Args have one-shot behaviour
 
-  Threads.wait_for_search_finished(); // Cannot quit while search is running
+  Threads.wait_for_think_finished(); // Cannot quit while search is running
 }
 
 
@@ -185,7 +182,7 @@ namespace {
   // the thinking time and other parameters from the input string, and starts
   // the search.
 
-  void go(Position& pos, istringstream& is) {
+  void go(const Position& pos, istringstream& is) {
 
     Search::LimitsType limits;
     vector<Move> searchMoves;
@@ -210,6 +207,6 @@ namespace {
         else if (token == "ponder")    limits.ponder = true;
     }
 
-    Threads.start_searching(pos, limits, searchMoves, SetupStates);
+    Threads.start_thinking(pos, limits, searchMoves, SetupStates);
   }
 }
