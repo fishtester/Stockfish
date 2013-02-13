@@ -82,6 +82,9 @@ void benchmark(const Position& current, istream& is) {
   else if (limitType == "nodes")
       limits.nodes = atoi(limit.c_str());
 
+  else if (limitType == "mate")
+      limits.mate = atoi(limit.c_str());
+
   else
       limits.depth = atoi(limit.c_str());
 
@@ -99,7 +102,7 @@ void benchmark(const Position& current, istream& is) {
       if (!file.is_open())
       {
           cerr << "Unable to open file " << fenFile << endl;
-          exit(EXIT_FAILURE);
+          return;
       }
 
       while (getline(file, fen))
@@ -127,8 +130,8 @@ void benchmark(const Position& current, istream& is) {
       }
       else
       {
-          Threads.start_searching(pos, limits, vector<Move>(), st);
-          Threads.wait_for_search_finished();
+          Threads.start_thinking(pos, limits, vector<Move>(), st);
+          Threads.wait_for_think_finished();
           nodes += Search::RootPos.nodes_searched();
       }
   }

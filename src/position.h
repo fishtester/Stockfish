@@ -30,7 +30,7 @@
 /// The checkInfo struct is initialized at c'tor time and keeps info used
 /// to detect if a move gives check.
 class Position;
-class Thread;
+struct Thread;
 
 struct CheckInfo {
 
@@ -122,7 +122,6 @@ public:
   Square castle_rook_square(Color c, CastlingSide s) const;
 
   // Checking
-  bool in_check() const;
   Bitboard checkers() const;
   Bitboard discovered_check_candidates() const;
   Bitboard pinned_pieces() const;
@@ -137,7 +136,6 @@ public:
 
   // Properties of moves
   bool move_gives_check(Move m, const CheckInfo& ci) const;
-  bool move_is_legal(const Move m) const;
   bool pl_move_is_legal(Move m, Bitboard pinned) const;
   bool is_pseudo_legal(const Move m) const;
   bool is_capture(Move m) const;
@@ -156,7 +154,8 @@ public:
   void do_move(Move m, StateInfo& st);
   void do_move(Move m, StateInfo& st, const CheckInfo& ci, bool moveIsCheck);
   void undo_move(Move m);
-  template<bool Do> void do_null_move(StateInfo& st);
+  void do_null_move(StateInfo& st);
+  void undo_null_move();
 
   // Static exchange evaluation
   int see(Move m) const;
@@ -180,7 +179,7 @@ public:
   Thread* this_thread() const;
   int64_t nodes_searched() const;
   void set_nodes_searched(int64_t n);
-  template<bool CheckRepetition, bool CheckThreeFold> bool is_draw() const;
+  template<bool SkipRepetition> bool is_draw() const;
 
   // Position consistency check, for debugging
   bool pos_is_ok(int* failedStep = NULL) const;
@@ -192,8 +191,8 @@ private:
   void put_piece(Piece p, Square s);
   void set_castle_right(Color c, Square rfrom);
 
-  // Helper template functions
-  template<bool Do> void do_castle_move(Move m);
+  // Helper functions
+  void do_castle(Square kfrom, Square kto, Square rfrom, Square rto);
   template<bool FindPinned> Bitboard hidden_checkers() const;
 
   // Computing hash keys from scratch (for initialization and debugging)
@@ -329,10 +328,6 @@ inline Bitboard Position::attackers_to(Square s) const {
 
 inline Bitboard Position::checkers() const {
   return st->checkersBB;
-}
-
-inline bool Position::in_check() const {
-  return st->checkersBB != 0;
 }
 
 inline Bitboard Position::discovered_check_candidates() const {
