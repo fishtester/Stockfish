@@ -20,11 +20,12 @@ void RunSearch(Position & pos) {
 }
 
 void RunCheckEval(Position & pos, int evalLimit) {
+  printf("%s\n", pos.fen().c_str());
   RunSearch(pos);
   if (evalLimit > 0 && abs(Search::RootMoves[0].score) > evalLimit) {
-    throw std::runtime_error("Failed: " + pos.fen());
+    throw std::runtime_error("Should be draw: " + pos.fen());
   } else if (abs(Search::RootMoves[0].score) < -evalLimit) {
-    throw std::runtime_error("Failed: " + pos.fen());
+    throw std::runtime_error("Should be mate: " + pos.fen());
   }
 }
 

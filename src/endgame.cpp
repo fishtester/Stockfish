@@ -100,6 +100,7 @@ Endgames::Endgames() {
   add<KBBKN>("KBBKN");
 
   add<KNPK>("KNPK");
+  add<KNPKB>("KNPKB");
   add<KRPKR>("KRPKR");
   add<KBPKB>("KBPKB");
   add<KBPKN>("KBPKN");
@@ -902,6 +903,23 @@ ScaleFactor Endgame<KNPK>::operator()(const Position& pos) const {
   return SCALE_FACTOR_NONE;
 }
 
+
+/// K, knight and a pawn vs K, bishop.  If knight can block bishop from
+/// taking pawn, it's a win.  Otherwise, drawn.
+template<>
+ScaleFactor Endgame<KNPKB>::operator()(const Position& pos) const {
+
+  Square pawnSq = pos.piece_list(strongerSide, PAWN)[0];
+  Square weakerKingSq = pos.king_square(weakerSide);
+  Square weakerBishopSq = pos.piece_list(weakerSide, BISHOP)[0];
+
+  Bitboard attacks = pos.attacks_from<BISHOP>(weakerBishopSq);
+  if (attacks & in_front_bb(strongerSide, pawnSq)) {
+    return ScaleFactor(10 * square_distance(weakerKingSq, pawnSq) - 10);
+  } 
+
+  return SCALE_FACTOR_NONE;
+}
 
 /// K and a pawn vs K and a pawn. This is done by removing the weakest side's
 /// pawn and probing the KP vs K bitbase: If the weakest side has a draw without
