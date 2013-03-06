@@ -64,8 +64,23 @@ void Test_KBPKP() {
   TestEndgame("8/8/5b2/8/1p3k2/1p6/1P6/1K6 w - - 0 1", -500);
 }
 
+void Test_KNPKB() {
+  // Draw, bishop covers queening square
+  TestEndgame("8/2KP4/8/8/3N3b/8/8/5k2 b - - 0 1", 100);
+
+  // Mate, same position as above, with white to move
+  TestEndgame("8/2KP4/8/8/3N3b/8/8/5k2 w - - 0 1", -500);
+
+  // Draw, bishop not on correct color, but can block pawn
+  TestEndgame("8/2K1k3/8/3P3b/3N4/8/8/8 b - - 0 1", 100);
+
+  // Loss, bishop not on correct color, king not close enough
+  TestEndgame("8/2K3k1/3P4/8/b2N4/8/8/8 w - - 1 3", -500);
+}
+
 void EndgameTests() {
   // Verified using chessok endgame tablebases - http://chessok.com/?page_id=361
   Test_KBPK();
   Test_KBPKP();
+  Test_KNPKB();
 }
