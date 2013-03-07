@@ -13,7 +13,7 @@
 void RunSearch(Position & pos) {
   Search::StateStackPtr st;
   Search::LimitsType limits;
-  limits.depth = 6;
+  limits.depth = 8;
 
   Threads.start_thinking(pos, limits, std::vector<Move>(), st);
   Threads.wait_for_think_finished();

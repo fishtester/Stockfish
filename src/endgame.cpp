@@ -908,15 +908,22 @@ ScaleFactor Endgame<KNPK>::operator()(const Position& pos) const {
 /// taking pawn, it's a win.  Otherwise, drawn.
 template<>
 ScaleFactor Endgame<KNPKB>::operator()(const Position& pos) const {
-
   Square pawnSq = pos.piece_list(strongerSide, PAWN)[0];
+  Square kingSq = pos.king_square(strongerSide);
+  Square knightSq = pos.piece_list(strongerSide, KNIGHT)[0];
   Square weakerKingSq = pos.king_square(weakerSide);
   Square weakerBishopSq = pos.piece_list(weakerSide, BISHOP)[0];
 
   Bitboard attacks = pos.attacks_from<BISHOP>(weakerBishopSq);
   if (attacks & in_front_bb(strongerSide, pawnSq)) {
-    return ScaleFactor(10 * square_distance(weakerKingSq, pawnSq) - 10);
-  } 
+    if (pos.side_to_move() == weakerSide)
+      return SCALE_FACTOR_DRAW;
+    int scale = 60;
+    if (same_color_squares(weakerBishopSq) & kingSq) scale /= 2;
+    if (square_distance(knightSq, kingSq) > 1) scale /= 2;
+    if (square_distance(kingSq, pawnSq) > 1) scale /= 2;
+    return ScaleFactor(scale);
+  }
 
   return SCALE_FACTOR_NONE;
 }
