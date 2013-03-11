@@ -909,17 +909,14 @@ ScaleFactor Endgame<KNPK>::operator()(const Position& pos) const {
 template<>
 ScaleFactor Endgame<KNPKB>::operator()(const Position& pos) const {
   Square pawnSq = pos.piece_list(strongerSide, PAWN)[0];
-  Square kingSq = pos.king_square(strongerSide);
-  Square knightSq = pos.piece_list(strongerSide, KNIGHT)[0];
   Square weakerKingSq = pos.king_square(weakerSide);
   Square weakerBishopSq = pos.piece_list(weakerSide, BISHOP)[0];
 
   Bitboard attacks = pos.attacks_from<BISHOP>(weakerBishopSq);
   if (attacks & forward_bb(strongerSide, pawnSq)) {
-    int scale = 60;
-    if (!(pos.attacks_from<KNIGHT>(knightSq) & forward_bb(strongerSide, pawnSq))) scale /= 6;
-    if (same_color_squares(weakerBishopSq) & kingSq) scale /= 6;
-    return ScaleFactor(scale);
+    // King needs to get close to promoting pawn to prevent knight from blocking.  Rules
+    // for this are very tricky, so just approximate.
+    return ScaleFactor(square_distance(weakerKingSq, pawnSq));
   }
 
   return SCALE_FACTOR_NONE;

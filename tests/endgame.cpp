@@ -13,7 +13,7 @@
 void RunSearch(Position & pos) {
   Search::StateStackPtr st;
   Search::LimitsType limits;
-  limits.depth = 8;
+  limits.depth = 14;
 
   Threads.start_thinking(pos, limits, std::vector<Move>(), st);
   Threads.wait_for_think_finished();
@@ -45,18 +45,18 @@ void Test_KBPK() {
   TestEndgame("8/8/8/8/6b1/p7/k7/2K5 w - - 0 1", -500);
 
   // Pawn on A file, bishop doesn't control queening square - draw
-  TestEndgame("8/8/8/8/5kb1/p7/8/1K6 w - - 0 1", 100);
+  TestEndgame("8/8/8/8/5kb1/p7/8/1K6 w - - 0 1", 200);
 }
 
 void Test_KBPKP() {
   // Bishop opposite color from pawn, file G, blocked pawns
-  TestEndgame("8/8/5b2/8/8/4k1p1/6P1/5K2 b - - 6 133", 100);
+  TestEndgame("8/8/5b2/8/8/4k1p1/6P1/5K2 b - - 6 133", 200);
 
   // Multiple pawns, still blocked, bishop opposite color
-  TestEndgame("8/8/4b3/8/1p3k2/1p6/1P6/1K6 w - - 0 1", 100);
+  TestEndgame("8/8/4b3/8/1p3k2/1p6/1P6/1K6 w - - 0 1", 200);
 
   // Bishop opposite color from pawn, file G, defending king far away
-  TestEndgame("5k2/1p6/1P6/8/3K1B2/8/8/8 w - - 0 1", 100);
+  TestEndgame("5k2/1p6/1P6/8/3K1B2/8/8/8 w - - 0 1", 200);
 
   // Same as above, king one square away - mate!
   TestEndgame("6k1/1p6/1P6/8/3K1B2/8/8/8 w - - 0 1", -500);
@@ -67,13 +67,13 @@ void Test_KBPKP() {
 
 void Test_KNPKB() {
   // Draw, bishop covers queening square
-  TestEndgame("8/2KP4/8/8/3N3b/8/8/5k2 b - - 0 1", 100);
+  TestEndgame("8/2KP4/8/8/3N3b/8/8/5k2 b - - 0 1", 256);
 
   // Mate, same position as above, with white to move
   TestEndgame("8/2KP4/8/8/3N3b/8/8/5k2 w - - 0 1", -500);
 
   // Draw, bishop not on correct color, but can block pawn
-  TestEndgame("8/2K1k3/8/3P3b/3N4/8/8/8 b - - 0 1", 100);
+  TestEndgame("8/2K1k3/8/3P3b/3N4/8/8/8 b - - 0 1", 256);
 
   // Loss, bishop not on correct color, king not close enough
   TestEndgame("8/2K3k1/3P4/8/b2N4/8/8/8 w - - 1 3", -500);
