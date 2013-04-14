@@ -242,12 +242,16 @@ Value Entry::shelter_storm(const Position& pos, Square ksq, Value* kingPenalty) 
 
       // Storm danger is smaller if enemy pawn is blocked
       b  = theirPawns & FileBB[f];
-      Square s = Us == WHITE ? lsb(b) : ~msb(b);
-      rkThem = b ? rank_of(s) : RANK_1;
-      safety -= StormDanger[rkThem == rkUs + 1][rkThem];
+      if (b) {
+          Square s = Us == WHITE ? lsb(b) : ~msb(b);
+          rkThem = rank_of(s);
+          safety -= StormDanger[rkThem == rkUs + 1][rkThem];
 
-      if (f == kf && rkThem == rkUs + 1 && rkThem == RANK_3)
-          *kingPenalty = Value((theirPawns & pos.attacks_from<PAWN>(s, Us)) ? 210 : 150);
+          if (f == kf && rkThem == rkUs + 1 && rkThem == RANK_3)
+              *kingPenalty = Value((theirPawns & pos.attacks_from<PAWN>(s, Us)) ? 128 : 86);
+      } else {
+          safety -= StormDanger[0][RANK_1];
+      }
   }
 
   return safety;
