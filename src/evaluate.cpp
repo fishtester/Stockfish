@@ -583,8 +583,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
                  score += BishopPinBonus;
 
         // Penalty for bishop with same coloured pawns
-        if (Piece == BISHOP)
-            score -= make_score(8, 12) * ei.pi->same_colored_pawn_count(s, Us); 
+        //if (Piece == BISHOP)
+        //    score -= make_score(8, 12) * ei.pi->same_colored_pawn_count(s, Us); 
 
         // Bishop and knight outposts squares
         if (    (Piece == BISHOP || Piece == KNIGHT)
