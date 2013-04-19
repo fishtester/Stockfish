@@ -621,7 +621,7 @@ namespace {
 
     // Step 6. Razoring (is omitted in PV nodes)
     if (   !PvNode
-        &&  depth < 7 * ONE_PLY
+        &&  depth < 10 * ONE_PLY
         && !inCheck
         &&  eval + razor_margin(depth) < beta
         &&  ttMove == MOVE_NONE
