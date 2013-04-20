@@ -868,6 +868,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
     Bitboard b, squaresToQueen, defendedSquares, unsafeSquares, supportingPawns;
     Score score = SCORE_ZERO;
 
+    File min_file = FILE_H, max_file = FILE_A;
+
     b = ei.pi->passed_pawns(Us);
 
     if (!b)
@@ -875,6 +877,9 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     do {
         Square s = pop_lsb(&b);
+
+        if (file_of(s) < min_file) min_file = file_of(s);
+        if (file_of(s) > max_file) max_file = file_of(s);
 
         assert(pos.pawn_is_passed(Us, s));
 
@@ -950,6 +955,10 @@ Value do_evaluate(const Position& pos, Value& margin) {
         score += make_score(mbonus, ebonus);
 
     } while (b);
+
+    if (min_file != max_file) {
+        score += make_score((max_file-min_file) * 5, (max_file-min_file) * 20);
+    }
 
     // Add the scores to the middle game and endgame eval
     return apply_weight(score, Weights[PassedPawns]);
