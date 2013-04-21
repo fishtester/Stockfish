@@ -452,8 +452,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
   if (pos.non_pawn_material(WHITE) == RookValueMg &&
       pos.non_pawn_material(BLACK) == RookValueMg &&
       sf == SCALE_FACTOR_NORMAL) {
-      sf = ScaleFactor(64 + abs(pos.piece_count(WHITE, PAWN) - pos.piece_count(BLACK, PAWN)) * 16);
-      sf = std::min(SCALE_FACTOR_MAX, sf);
+      sf = ScaleFactor(44 + abs(pos.piece_count(WHITE, PAWN) - pos.piece_count(BLACK, PAWN)) * 6);
+      sf = std::min(SCALE_FACTOR_NORMAL, sf);
   }
 
   margin = margins[pos.side_to_move()];
