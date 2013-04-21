@@ -449,6 +449,13 @@ Value do_evaluate(const Position& pos, Value& margin) {
            sf = ScaleFactor(50);
   }
 
+  if (pos.non_pawn_material(WHITE) == RookValueMg &&
+      pos.non_pawn_material(BLACK) == RookValueMg &&
+      sf == SCALE_FACTOR_NORMAL) {
+      sf = ScaleFactor(64 + abs(pos.piece_count(WHITE, PAWN) - pos.piece_count(BLACK, PAWN)) * 16);
+      sf = std::min(SCALE_FACTOR_MAX, sf);
+  }
+
   margin = margins[pos.side_to_move()];
   Value v = interpolate(score, ei.mi->game_phase(), sf);
 
