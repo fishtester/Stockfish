@@ -65,18 +65,18 @@ namespace {
   const Score PawnStructureWeight = S(233, 201);
 
   // Weakness of our pawn shelter in front of the king indexed by [king pawn][rank]
-  const Value ShelterWeakness[2][RANK_NB] =
-  { { V(141), V(0), V(38), V(102), V(128), V(141), V(141) },
-    { V( 61), V(0), V(16), V( 44), V( 56), V( 61), V( 61) } };
+  const Score ShelterWeakness[2][RANK_NB] =
+  { { S(131,30), S(0,0), S(33,5), S(95,25), S(118,27), S(131,30), S(131,30) },
+    { S( 61,10), S(0,0), S(16,2), S(40, 8), S( 46, 9), S( 51,10), S( 51,10) } };
 
   // Danger of enemy pawns moving toward our king indexed by [pawn blocked][rank]
-  const Value StormDanger[2][RANK_NB] =
-  { { V(26), V(0), V(128), V(51), V(26) },
-    { V(13), V(0), V( 64), V(25), V(13) } };
+  const Score StormDanger[2][RANK_NB] =
+  { { S(26,0), S(0,0), S(128,101), S(51,0), S(26,0) },
+    { S(13,0), S(0,0), S(101,101), S(25,0), S(13,0) } };
 
   // Max bonus for king safety. Corresponds to start position with all the pawns
   // in front of the king and no enemy pawn on the horizont.
-  const Value MaxSafetyBonus = V(263);
+  const Score MaxSafetyBonus = S(263, 9);
 
   #undef S
   #undef V
@@ -226,11 +226,11 @@ Entry* probe(const Position& pos, Table& entries) {
 /// the king is on, as well as the two adjacent files.
 
 template<Color Us>
-Value Entry::shelter_storm(const Position& pos, Square ksq) {
+Score Entry::shelter_storm(const Position& pos, Square ksq) {
 
   const Color Them = (Us == WHITE ? BLACK : WHITE);
 
-  Value safety = MaxSafetyBonus;
+  Score safety = MaxSafetyBonus;
   Bitboard b = pos.pieces(PAWN) & (in_front_bb(Us, ksq) | rank_bb(ksq));
   Bitboard ourPawns = b & pos.pieces(Us) & ~rank_bb(ksq);
   Bitboard theirPawns = b & pos.pieces(Them);
@@ -273,16 +273,22 @@ Score Entry::update_safety(const Position& pos, Square ksq) {
   if (relative_rank(Us, ksq) > RANK_4)
       return kingSafety[Us] = make_score(0, -16 * minKPdistance[Us]);
 
-  Value bonus = shelter_storm<Us>(pos, ksq);
+  Score bonus = shelter_storm<Us>(pos, ksq);
 
   // If we can castle use the bonus after the castle if is bigger
-  if (pos.can_castle(make_castle_right(Us, KING_SIDE)))
-      bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_G1)));
+  if (pos.can_castle(make_castle_right(Us, KING_SIDE))) {
+      Score kbonus = shelter_storm<Us>(pos, relative_square(Us, SQ_G1));
+      if (mg_value(kbonus) > mg_value(bonus))
+          bonus = kbonus;
+  }
 
-  if (pos.can_castle(make_castle_right(Us, QUEEN_SIDE)))
-      bonus = std::max(bonus, shelter_storm<Us>(pos, relative_square(Us, SQ_C1)));
+  if (pos.can_castle(make_castle_right(Us, QUEEN_SIDE))) {
+      Score qbonus = shelter_storm<Us>(pos, relative_square(Us, SQ_C1));
+      if (mg_value(qbonus) > mg_value(bonus))
+          bonus = qbonus;
+  }
 
-  return kingSafety[Us] = make_score(bonus, -16 * minKPdistance[Us]);
+  return kingSafety[Us] = bonus + make_score(0, -16 * minKPdistance[Us]);
 }
 
 // Explicit template instantiation
