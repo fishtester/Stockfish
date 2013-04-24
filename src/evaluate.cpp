@@ -957,7 +957,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
     } while (b);
 
     if (min_file != max_file) {
-        score += make_score(0, (max_file-min_file-3) * 15);
+        score += make_score(0, (max_file-min_file-1) * 25);
     }
 
     // Add the scores to the middle game and endgame eval
