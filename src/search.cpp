@@ -1174,6 +1174,8 @@ split_point_start: // At split points actual search starts from here
     {
         if (tte)
         {
+            ss->ei.weak[WHITE] = ss->ei.weak[BLACK] = 0;
+
             // Never assume anything on values stored in TT
             if (  (ss->staticEval = bestValue = tte->eval_value()) == VALUE_NONE
                 ||(ss->evalMargin = tte->eval_margin()) == VALUE_NONE)
@@ -1195,7 +1197,7 @@ split_point_start: // At split points actual search starts from here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        futilityBase = ss->staticEval + ss->evalMargin + Value(128);
+        futilityBase = ss->staticEval + ss->evalMargin + (ss->ei.weak[pos.side_to_move()] ? Value(82) : Value(140));
         enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMg;
     }
 

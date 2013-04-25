@@ -188,15 +188,12 @@ void MovePicker::score<CAPTURES>() {
 template<>
 void MovePicker::score<QUIETS>() {
 
-  const Bitboard weaks = ss->ei.weak[pos.side_to_move()];
   Move m;
 
   for (MoveStack* it = moves; it != end; ++it)
   {
       m = it->move;
       it->score = Hist[pos.piece_moved(m)][to_sq(m)];
-      if (weaks && (weaks & from_sq(m)))
-          it->score += History::Max;
   }
 }
 
