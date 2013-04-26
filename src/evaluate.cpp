@@ -108,9 +108,11 @@ namespace {
     S(0, 0), S(0, 0), S(56, 70), S(56, 70), S(76, 99), S(86, 118)
   };
 
+  //original: make_score(66, 11)                       Pawn    Knight    Bishop   Rook      Queen    King
+  const Score BishopPinBonus[PIECE_TYPE_NB] = {S(0,0), S(4, 1), S(50,8), S(10,2), S(70,25), S(40,8), S(0,0)};
+  // bonus for friendly piece 
+  const Score BishopXRayBonus[PIECE_TYPE_NB] = {S(0,0), S(4, 1), S(50,8), S(0,0), S(60,30), S(0,0), S(4, 7)};
   #undef S
-
-  const Score BishopPinBonus = make_score(66, 11);
 
   // Bonus for having the side to move (modified by Joona Kiiski)
   const Score Tempo = make_score(24, 11);
@@ -541,9 +543,13 @@ Value do_evaluate(const Position& pos, Value& margin, Info& ei) {
         // Otherwise give a bonus if we are a bishop and can pin a piece or
         // can give a discovered check through an x-ray attack.
         else if (    Piece == BISHOP
-                 && (PseudoAttacks[Piece][pos.king_square(Them)] & s)
-                 && !more_than_one(BetweenBB[s][pos.king_square(Them)] & pos.pieces()))
-                 score += BishopPinBonus;
+                 && (PseudoAttacks[Piece][pos.king_square(Them)] & s)) {
+            Bitboard between = BetweenBB[s][pos.king_square(Them)] & pos.pieces();
+            if (!more_than_one(between)) {
+                ::Piece p = pos.piece_on(lsb(between));
+                score += color_of(p) == Us ? BishopXRayBonus[type_of(p)] : BishopPinBonus[type_of(p)];
+            }
+        }
 
         // Penalty for bishop with same coloured pawns
         if (Piece == BISHOP)
