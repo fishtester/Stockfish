@@ -58,9 +58,8 @@ namespace {
      {}, {},
      { S(-38,-33), S(-25,-23), S(-12,-13), S( 0, -3), S(12,  7), S(25, 17), // Knights
        S( 31, 22), S( 38, 27), S( 38, 27) },
-     { S(-25,-30), S(-11,-16), S(  3, -2), S(17, 12), S(31, 26), S(45, 40), // Bishops
-       S( 57, 52), S( 65, 60), S( 71, 65), S(74, 69), S(76, 71), S(78, 73),
-       S( 79, 74), S( 80, 75), S( 81, 76), S(81, 76) },
+     { S(-11,-16), S(  3, -2), S( 17, 12), S(31, 26), S(45, 40), S(57, 52), // Bishops
+       S( 65, 60), S( 74, 71) },
      { S(-20,-36), S(-14,-19), S( -8, -3), S(-2, 13), S( 4, 29), S(10, 46), // Rooks
        S( 14, 62), S( 19, 79), S( 23, 95), S(26,106), S(27,111), S(28,114),
        S( 29,116), S( 30,117), S( 31,118), S(32,118) },
@@ -528,8 +527,12 @@ Value do_evaluate(const Position& pos, Value& margin, Info& ei) {
                 ei.kingAdjacentZoneAttacksCount[Us] += popcount<Max15>(bb);
         }
 
-        mob = (Piece != QUEEN ? popcount<Max15>(b & mobilityArea)
-                              : popcount<Full >(b & mobilityArea));
+        if (Piece == QUEEN)
+            mob = popcount<Full>(b & mobilityArea);
+        else if (Piece == BISHOP)
+            mob = popcount<Max15>(b & mobilityArea & in_front_bb(Us, s));
+        else
+            mob = popcount<Max15>(b & mobilityArea);
 
         mobility += MobilityBonus[Piece][mob];
 
