@@ -195,7 +195,7 @@ void MovePicker::score<QUIETS>() {
   {
       m = it->move;
       it->score = Hist[pos.piece_moved(m)][to_sq(m)];
-      if (depth <= 8 * ONE_PLY && weaks && (weaks & from_sq(m)))
+      if (depth <= 6 * ONE_PLY && weaks && (weaks & from_sq(m)))
           it->score += History::Max;
   }
 }
