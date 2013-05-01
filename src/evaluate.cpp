@@ -149,9 +149,9 @@ namespace {
   };
 
   //original: make_score(66, 11)                       Pawn    Knight    Bishop   Rook      Queen    King
-  const Score BishopPinBonus[PIECE_TYPE_NB] = {S(0,0), S(4, 1), S(50,8), S(10,2), S(70,25), S(40,8), S(0,0)};
+  const Score BishopPinBonus[PIECE_TYPE_NB] = {S(0,0), S(20, 3), S(80,20), S(10,2), S(100,35), S(80,25), S(0,0)};
   // bonus for friendly piece 
-  const Score BishopXRayBonus[PIECE_TYPE_NB] = {S(0,0), S(4, 1), S(50,8), S(0,0), S(60,30), S(0,0), S(4, 7)};
+  const Score BishopXRayBonus[PIECE_TYPE_NB] = {S(0,0), S(20, 4), S(80,20), S(0,0), S(100,30), S(30,5), S(4, 7)};
   #undef S
 
   // Bonus for having the side to move (modified by Joona Kiiski)
