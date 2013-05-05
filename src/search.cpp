@@ -446,7 +446,7 @@ namespace {
                 &&  PVSize == 1
                 &&  bestValue > VALUE_MATED_IN_MAX_PLY
                 && (   RootMoves.size() == 1
-                    || Time::now() - SearchTime > (TimeMgr.available_time() * 20) / 100))
+                    || Time::now() - SearchTime > (TimeMgr.available_time() * 3) / 100))
             {
                 Value rBeta = bestValue - 2 * PawnValueMg;
                 (ss+1)->excludedMove = RootMoves[0].pv[0];
