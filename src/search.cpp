@@ -145,7 +145,7 @@ void Search::init() {
 
   // Init futility move count array
   for (d = 0; d < 32; d++)
-      FutilityMoveCounts[d] = int(3.001 + 0.25 * pow(double(d), 2.0));
+      FutilityMoveCounts[d] = int(3.001 + 0.3 * pow(double(d), 1.8));
 }
 
 
@@ -264,6 +264,10 @@ void Search::think() {
 
 finalize:
 
+  // When search is stopped this info is not printed
+  sync_cout << "info nodes " << RootPos.nodes_searched()
+            << " time " << Time::now() - SearchTime + 1 << sync_endl;
+
   // When we reach max depth we arrive here even without Signals.stop is raised,
   // but if we are pondering or in infinite search, according to UCI protocol,
   // we shouldn't print the best move before the GUI sends a "stop" or "ponderhit"
@@ -293,7 +297,6 @@ namespace {
     Stack ss[MAX_PLY_PLUS_2];
     int depth, prevBestMoveChanges;
     Value bestValue, alpha, beta, delta;
-    bool bestMoveNeverChanged = true;
 
     memset(ss, 0, 4 * sizeof(Stack));
     depth = BestMoveChanges = 0;
@@ -416,10 +419,6 @@ namespace {
                 << std::endl;
         }
 
-        // Filter out startup noise when monitoring best move stability
-        if (depth > 2 && BestMoveChanges)
-            bestMoveNeverChanged = false;
-
         // Do we have found a "mate in x"?
         if (   Limits.mate
             && bestValue >= VALUE_MATE_IN_MAX_PLY
@@ -445,8 +444,9 @@ namespace {
             if (    depth >= 12
                 && !stop
                 &&  PVSize == 1
-                && (   (bestMoveNeverChanged &&  pos.captured_piece_type())
-                    || Time::now() - SearchTime > (TimeMgr.available_time() * 40) / 100))
+                &&  bestValue > VALUE_MATED_IN_MAX_PLY
+                && (   RootMoves.size() == 1
+                    || Time::now() - SearchTime > (TimeMgr.available_time() * 20) / 100))
             {
                 Value rBeta = bestValue - 2 * PawnValueMg;
                 (ss+1)->excludedMove = RootMoves[0].pv[0];
@@ -494,7 +494,7 @@ namespace {
     Move movesSearched[64];
     StateInfo st;
     const TTEntry *tte;
-    SplitPoint* sp;
+    SplitPoint* splitPoint;
     Key posKey;
     Move ttMove, move, excludedMove, bestMove, threatMove;
     Depth ext, newDepth;
@@ -511,15 +511,15 @@ namespace {
 
     if (SpNode)
     {
-        sp = ss->sp;
-        bestMove   = sp->bestMove;
-        threatMove = sp->threatMove;
-        bestValue  = sp->bestValue;
+        splitPoint = ss->splitPoint;
+        bestMove   = splitPoint->bestMove;
+        threatMove = splitPoint->threatMove;
+        bestValue  = splitPoint->bestValue;
         tte = NULL;
         ttMove = excludedMove = MOVE_NONE;
         ttValue = VALUE_NONE;
 
-        assert(sp->bestValue > -VALUE_INFINITE && sp->moveCount > 0);
+        assert(splitPoint->bestValue > -VALUE_INFINITE && splitPoint->moveCount > 0);
 
         goto split_point_start;
     }
@@ -527,6 +527,7 @@ namespace {
     bestValue = -VALUE_INFINITE;
     ss->currentMove = threatMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
+    ss->futilityMoveCount = 0;
     (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
@@ -537,7 +538,7 @@ namespace {
     if (!RootNode)
     {
         // Step 2. Check for aborted search and immediate draw
-        if (Signals.stop || pos.is_draw<false>() || ss->ply > MAX_PLY)
+        if (Signals.stop || pos.is_draw() || ss->ply > MAX_PLY)
             return DrawValue[pos.side_to_move()];
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
@@ -647,10 +648,11 @@ namespace {
         && !ss->skipNullMove
         &&  depth < 4 * ONE_PLY
         && !inCheck
-        &&  eval - FutilityMargins[depth][0] >= beta
+        &&  eval - futility_margin(depth, (ss-1)->futilityMoveCount) >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
+        &&  abs(eval) < VALUE_KNOWN_WIN
         &&  pos.non_pawn_material(pos.side_to_move()))
-        return eval - FutilityMargins[depth][0];
+        return eval - futility_margin(depth, (ss-1)->futilityMoveCount);
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
     if (   !PvNode
@@ -683,7 +685,7 @@ namespace {
             if (nullValue >= VALUE_MATE_IN_MAX_PLY)
                 nullValue = beta;
 
-            if (depth < 6 * ONE_PLY)
+            if (depth < 12 * ONE_PLY)
                 return nullValue;
 
             // Do verification search at high depths
@@ -750,7 +752,7 @@ namespace {
         && ttMove == MOVE_NONE
         && (PvNode || (!inCheck && ss->staticEval + Value(256) >= beta)))
     {
-        Depth d = (PvNode ? depth - 2 * ONE_PLY : depth / 2);
+        Depth d = depth - 2 * ONE_PLY - (PvNode ? DEPTH_ZERO : depth / 4);
 
         ss->skipNullMove = true;
         search<PvNode ? PV : NonPV>(pos, ss, alpha, beta, d);
@@ -794,8 +796,8 @@ split_point_start: // At split points actual search starts from here
           if (!pos.pl_move_is_legal(move, ci.pinned))
               continue;
 
-          moveCount = ++sp->moveCount;
-          sp->mutex.unlock();
+          moveCount = ++splitPoint->moveCount;
+          splitPoint->mutex.unlock();
       }
       else
           moveCount++;
@@ -857,19 +859,20 @@ split_point_start: // At split points actual search starts from here
       newDepth = depth - ONE_PLY + ext;
 
       // Step 13. Futility pruning (is omitted in PV nodes)
-      if (   !captureOrPromotion
+      if (   !PvNode
+          && !captureOrPromotion
           && !inCheck
           && !dangerous
-          &&  move != ttMove)
+       /* &&  move != ttMove Already implicit in the next condition */
+          &&  bestValue > VALUE_MATED_IN_MAX_PLY)
       {
           // Move count based pruning
-          if (   !PvNode
-              && depth < 16 * ONE_PLY
+          if (   depth < 16 * ONE_PLY
               && moveCount >= FutilityMoveCounts[depth]
               && (!threatMove || !refutes(pos, move, threatMove)))
           {
               if (SpNode)
-                  sp->mutex.lock();
+                  splitPoint->mutex.lock();
 
               continue;
           }
@@ -881,24 +884,35 @@ split_point_start: // At split points actual search starts from here
           futilityValue =  ss->staticEval + ss->evalMargin + futility_margin(predictedDepth, moveCount)
                          + Gain[pos.piece_moved(move)][to_sq(move)];
 
-          if (!PvNode && futilityValue < beta)
+          if (futilityValue < beta)
           {
-              if (SpNode)
-                  sp->mutex.lock();
+              bestValue = std::max(bestValue, futilityValue);
 
+              if (SpNode)
+              {
+                  splitPoint->mutex.lock();
+                  if (bestValue > splitPoint->bestValue)
+                      splitPoint->bestValue = bestValue;
+              }
               continue;
           }
 
           // Prune moves with negative SEE at low depths
-          if (   predictedDepth < 2 * ONE_PLY
+          if (   predictedDepth < 4 * ONE_PLY
               && pos.see_sign(move) < 0)
           {
               if (SpNode)
-                  sp->mutex.lock();
+                  splitPoint->mutex.lock();
 
               continue;
           }
+
+          // We have not pruned the move that will be searched, but remember how
+          // far in the move list we are to be more aggressive in the child node.
+          ss->futilityMoveCount = moveCount;
       }
+      else
+          ss->futilityMoveCount = 0;
 
       // Check for legality only before to do the move
       if (!RootNode && !SpNode && !pos.pl_move_is_legal(move, ci.pinned))
@@ -927,7 +941,8 @@ split_point_start: // At split points actual search starts from here
       {
           ss->reduction = reduction<PvNode>(depth, moveCount);
           Depth d = std::max(newDepth - ss->reduction, ONE_PLY);
-          alpha = SpNode ? sp->alpha : alpha;
+          if (SpNode)
+              alpha = splitPoint->alpha;
 
           value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, d);
 
@@ -940,7 +955,9 @@ split_point_start: // At split points actual search starts from here
       // Step 16. Full depth search, when LMR is skipped or fails high
       if (doFullDepthSearch)
       {
-          alpha = SpNode ? sp->alpha : alpha;
+          if (SpNode)
+              alpha = splitPoint->alpha;
+
           value = newDepth < ONE_PLY ?
                           givesCheck ? -qsearch<NonPV,  true>(pos, ss+1, -(alpha+1), -alpha, DEPTH_ZERO)
                                      : -qsearch<NonPV, false>(pos, ss+1, -(alpha+1), -alpha, DEPTH_ZERO)
@@ -963,9 +980,9 @@ split_point_start: // At split points actual search starts from here
       // Step 18. Check for new best move
       if (SpNode)
       {
-          sp->mutex.lock();
-          bestValue = sp->bestValue;
-          alpha = sp->alpha;
+          splitPoint->mutex.lock();
+          bestValue = splitPoint->bestValue;
+          alpha = splitPoint->alpha;
       }
 
       // Finished searching the move. If Signals.stop is true, the search
@@ -1000,20 +1017,20 @@ split_point_start: // At split points actual search starts from here
 
       if (value > bestValue)
       {
-          bestValue = SpNode ? sp->bestValue = value : value;
+          bestValue = SpNode ? splitPoint->bestValue = value : value;
 
           if (value > alpha)
           {
-              bestMove = SpNode ? sp->bestMove = move : move;
+              bestMove = SpNode ? splitPoint->bestMove = move : move;
 
               if (PvNode && value < beta) // Update alpha! Always alpha < beta
-                  alpha = SpNode ? sp->alpha = value : value;
+                  alpha = SpNode ? splitPoint->alpha = value : value;
               else
               {
                   assert(value >= beta); // Fail high
 
                   if (SpNode)
-                      sp->cutoff = true;
+                      splitPoint->cutoff = true;
 
                   break;
               }
@@ -1124,8 +1141,14 @@ split_point_start: // At split points actual search starts from here
     ss->ply = (ss-1)->ply + 1;
 
     // Check for an instant draw or maximum ply reached
-    if (pos.is_draw<true>() || ss->ply > MAX_PLY)
+    if (pos.is_draw() || ss->ply > MAX_PLY)
         return DrawValue[pos.side_to_move()];
+
+    // Decide whether or not to include checks, this fixes also the type of
+    // TT entry depth that we are going to use. Note that in qsearch we use
+    // only two types of depth in TT: DEPTH_QS_CHECKS or DEPTH_QS_NO_CHECKS.
+    ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
+                                                  : DEPTH_QS_NO_CHECKS;
 
     // Transposition table lookup. At PV nodes, we don't use the TT for
     // pruning, but only for move ordering.
@@ -1134,11 +1157,6 @@ split_point_start: // At split points actual search starts from here
     ttMove = tte ? tte->move() : MOVE_NONE;
     ttValue = tte ? value_from_tt(tte->value(),ss->ply) : VALUE_NONE;
 
-    // Decide whether or not to include checks, this fixes also the type of
-    // TT entry depth that we are going to use. Note that in qsearch we use
-    // only two types of depth in TT: DEPTH_QS_CHECKS or DEPTH_QS_NO_CHECKS.
-    ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
-                                                  : DEPTH_QS_NO_CHECKS;
     if (   tte
         && tte->depth() >= ttDepth
         && ttValue != VALUE_NONE // Only in case of TT access race
@@ -1219,10 +1237,11 @@ split_point_start: // At split points actual search starts from here
               continue;
           }
 
-          // Prune moves with negative or equal SEE
+          // Prune moves with negative or equal SEE and also moves with positive
+          // SEE where capturing piece loses a tempo and SEE < beta - futilityBase.
           if (   futilityBase < beta
               && depth < DEPTH_ZERO
-              && pos.see(move) <= 0)
+              && pos.see(move, beta - futilityBase) <= 0)
           {
               bestValue = std::max(bestValue, futilityBase);
               continue;
@@ -1572,7 +1591,7 @@ void RootMove::extract_pv_from_tt(Position& pos) {
            && pos.is_pseudo_legal(m = tte->move()) // Local copy, TT could change
            && pos.pl_move_is_legal(m, pos.pinned_pieces())
            && ply < MAX_PLY
-           && (!pos.is_draw<false>() || ply < 2));
+           && (!pos.is_draw() || ply < 2));
 
   pv.push_back(MOVE_NONE); // Must be zero-terminating
 
@@ -1612,13 +1631,11 @@ void Thread::idle_loop() {
 
   // Pointer 'this_sp' is not null only if we are called from split(), and not
   // at the thread creation. So it means we are the split point's master.
-  const SplitPoint* this_sp = splitPointsSize ? activeSplitPoint : NULL;
+  SplitPoint* this_sp = splitPointsSize ? activeSplitPoint : NULL;
 
   assert(!this_sp || (this_sp->masterThread == this && searching));
 
-  // If this thread is the master of a split point and all slaves have finished
-  // their work at this split point, return from the idle loop.
-  while (!this_sp || this_sp->slavesMask)
+  while (true)
   {
       // If we are not searching, wait for a condition to be signaled instead of
       // wasting CPU time polling for work.
@@ -1666,7 +1683,7 @@ void Thread::idle_loop() {
           Position pos(*sp->pos, this);
 
           memcpy(ss, sp->ss - 1, 4 * sizeof(Stack));
-          (ss+1)->sp = sp;
+          (ss+1)->splitPoint = sp;
 
           sp->mutex.lock();
 
@@ -1710,6 +1727,17 @@ void Thread::idle_loop() {
           // our feet by the sp master. Also accessing other Thread objects is
           // unsafe because if we are exiting there is a chance are already freed.
           sp->mutex.unlock();
+      }
+
+      // If this thread is the master of a split point and all slaves have finished
+      // their work at this split point, return from the idle loop.
+      if (this_sp && !this_sp->slavesMask)
+      {
+          this_sp->mutex.lock();
+          bool finished = !this_sp->slavesMask; // Retest under lock protection
+          this_sp->mutex.unlock();
+          if (finished)
+              return;
       }
   }
 }
