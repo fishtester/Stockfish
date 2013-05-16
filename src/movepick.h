@@ -42,16 +42,16 @@ struct Stats {
 
   static const Value Max = Value(2000);
 
-  const T* operator[](Piece p) const { return &table[p][0]; }
+  const T* operator[](Piece p) const { return table[p]; }
   void clear() { memset(table, 0, sizeof(table)); }
 
   void update(Piece p, Square to, Move m) {
 
-   if (m != table[p][to].first)
-   {
-       table[p][to].second = table[p][to].first;
-       table[p][to].first = m;
-   }
+    if (m == table[p][to].first)
+        return;
+
+    table[p][to].second = table[p][to].first;
+    table[p][to].first = m;
   }
 
   void update(Piece p, Square to, Value v) {
