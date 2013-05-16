@@ -513,8 +513,10 @@ Value do_evaluate(const Position& pos, Value& margin, Eval::Info& ei) {
 
         // Decrease score if we are attacked by an enemy pawn. Remaining part
         // of threat evaluation must be done later when we have full attack info.
-        if (ei.attackedBy[Them][PAWN] & s)
+        if (ei.attackedBy[Them][PAWN] & s) {
             score -= ThreatenedByPawnPenalty[Piece];
+            ei.weak[Us] |= s;
+        }
 
         // Otherwise give a bonus if we are a bishop and can pin a piece or can
         // give a discovered check through an x-ray attack.
@@ -615,8 +617,6 @@ Value do_evaluate(const Position& pos, Value& margin, Eval::Info& ei) {
     if (!weakEnemies)
         return score;
 
-    ei.weak[Them] = weakEnemies;
-
     // Add bonus according to type of attacked enemy piece and to the
     // type of attacking piece, from knights to queens. Kings are not
     // considered because are already handled in king evaluation.
@@ -625,8 +625,10 @@ Value do_evaluate(const Position& pos, Value& margin, Eval::Info& ei) {
         b = ei.attackedBy[Us][pt1] & weakEnemies;
         if (b)
             for (PieceType pt2 = PAWN; pt2 < KING; pt2++)
-                if (b & pos.pieces(pt2))
+                if (b & pos.pieces(pt2)) {
+                    if (pt1 < pt2) ei.weak[Them] |= b & pos.pieces(pt2);
                     score += ThreatBonus[pt1][pt2];
+                }
     }
     return score;
   }
