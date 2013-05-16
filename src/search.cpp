@@ -1211,7 +1211,7 @@ split_point_start: // At split points actual search starts from here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        futilityBase = ss->staticEval + ss->evalMargin + (ss->ei.weak[pos.side_to_move()] ? Value(82) : Value(140));
+        futilityBase = ss->staticEval + ss->evalMargin + Value(128);
         enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMg;
     }
 
