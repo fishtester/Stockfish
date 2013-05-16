@@ -199,9 +199,9 @@ void MovePicker::score<QUIETS>() {
   {
       m = it->move;
       it->score = history[pos.piece_moved(m)][to_sq(m)];
-      if ((weak & from_sq(m)) && pos.see_sign(m) >= 0) {
+      if ((weak & from_sq(m)) && pos.see_sign(m) < 0) {
           //printf("%s %s\n", pos.fen().c_str(), move_to_san(const_cast<Position&>(pos), m).c_str());
-          it->score += HistoryStats::Max;
+          it->score -= HistoryStats::Max;
       }
   }
 }
