@@ -20,9 +20,9 @@
 #if !defined(EVALUATE_H_INCLUDED)
 #define EVALUATE_H_INCLUDED
 
+#include "types.h"
 #include "material.h"
 #include "pawns.h"
-#include "types.h"
 
 class Position;
 

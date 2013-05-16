@@ -70,8 +70,8 @@ namespace {
 /// search captures, promotions and some checks) and about how important good
 /// move ordering is at the current node.
 
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
-                       Search::Stack* s, Value beta) : pos(p), Hist(h), ss(s), depth(d) {
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats& h, const CountermovesStats& cm,
+                       Search::Stack* s, Value beta) : pos(p), history(h), depth(d) {
 
   assert(d > DEPTH_ZERO);
 
@@ -88,6 +88,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
 
       killers[0].move = ss->killers[0];
       killers[1].move = ss->killers[1];
+      Square prevSq = to_sq((ss-1)->currentMove);
+      killers[2].move = cm[pos.piece_on(prevSq)][prevSq];
 
       // Consider sligtly negative captures as good if at low depth and far from beta
       if (ss && ss->staticEval < beta - PawnValueMg && d < 3 * ONE_PLY)
@@ -102,8 +104,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
   end += (ttMove != MOVE_NONE);
 }
 
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
-                       Square sq) : pos(p), Hist(h), cur(moves), end(moves) {
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats& h,
+                       Square sq) : pos(p), history(h), cur(moves), end(moves) {
 
   assert(d <= DEPTH_ZERO);
 
@@ -134,8 +136,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
   end += (ttMove != MOVE_NONE);
 }
 
-MovePicker::MovePicker(const Position& p, Move ttm, const History& h, PieceType pt)
-                       : pos(p), Hist(h), cur(moves), end(moves) {
+MovePicker::MovePicker(const Position& p, Move ttm, const HistoryStats& h, PieceType pt)
+                       : pos(p), history(h), cur(moves), end(moves) {
 
   assert(!pos.checkers());
 
@@ -193,7 +195,7 @@ void MovePicker::score<QUIETS>() {
   for (MoveStack* it = moves; it != end; ++it)
   {
       m = it->move;
-      it->score = Hist[pos.piece_moved(m)][to_sq(m)];
+      it->score = history[pos.piece_moved(m)][to_sq(m)];
   }
 }
 
@@ -209,13 +211,13 @@ void MovePicker::score<EVASIONS>() {
   {
       m = it->move;
       if ((seeScore = pos.see_sign(m)) < 0)
-          it->score = seeScore - History::Max; // At the bottom
+          it->score = seeScore - HistoryStats::Max; // At the bottom
 
       else if (pos.is_capture(m))
           it->score =  PieceValue[MG][pos.piece_on(to_sq(m))]
-                     - type_of(pos.piece_moved(m)) + History::Max;
+                     - type_of(pos.piece_moved(m)) + HistoryStats::Max;
       else
-          it->score = Hist[pos.piece_moved(m)][to_sq(m)];
+          it->score = history[pos.piece_moved(m)][to_sq(m)];
   }
 }
 
@@ -236,7 +238,7 @@ void MovePicker::generate_next() {
 
   case KILLERS_S1:
       cur = killers;
-      end = cur + 2;
+      end = cur + 3 - (killers[2].move == killers[0].move || killers[2].move == killers[1].move);
       return;
 
   case QUIETS_1_S1:
@@ -328,7 +330,8 @@ Move MovePicker::next_move<false>() {
           move = (cur++)->move;
           if (   move != ttMove
               && move != killers[0].move
-              && move != killers[1].move)
+              && move != killers[1].move
+              && move != killers[2].move)
               return move;
           break;
 

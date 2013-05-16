@@ -25,10 +25,10 @@
 #include <stack>
 #include <vector>
 
-#include "evaluate.h"
 #include "misc.h"
 #include "position.h"
 #include "types.h"
+#include "evaluate.h"
 
 struct SplitPoint;
 
