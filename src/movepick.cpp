@@ -78,6 +78,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats&
   captureThreshold = 0;
   cur = end = moves;
   endBadCaptures = moves + MAX_MOVES - 1;
+  ss = s;
 
   if (p.checkers())
       phase = EVASION;
