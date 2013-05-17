@@ -198,10 +198,11 @@ void MovePicker::score<QUIETS>() {
   for (MoveStack* it = moves; it != end; ++it)
   {
       m = it->move;
-      it->score = history[pos.piece_moved(m)][to_sq(m)];
-      if ((weak & from_sq(m)) && pos.see_sign(m) < 0) {
-          //printf("%s %s\n", pos.fen().c_str(), move_to_san(const_cast<Position&>(pos), m).c_str());
-          it->score -= HistoryStats::Max;
+      if ((weak & from_sq(m)) && pos.see_sign(m) >= 0) {
+          weak = 0;
+          it->score = HistoryStats::Max;
+      } else {
+          it->score = history[pos.piece_moved(m)][to_sq(m)];
       }
   }
 }
