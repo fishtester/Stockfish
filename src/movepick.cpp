@@ -22,7 +22,6 @@
 
 #include "movepick.h"
 #include "thread.h"
-#include "notation.h"
 
 namespace {
 
@@ -187,18 +186,11 @@ void MovePicker::score<CAPTURES>() {
 
 template<>
 void MovePicker::score<QUIETS>() {
-  const Color Us = pos.side_to_move();
-  Bitboard weak = ss->ei.weak[Us] & ~pos.pieces(Us, PAWN);
   Move m;
   for (MoveStack* it = moves; it != end; ++it)
   {
       m = it->move;
-      if ((weak & from_sq(m)) && pos.see_sign(m) >= 0) {
-          weak = 0;
-          it->score = HistoryStats::Max;
-      } else {
-          it->score = history[pos.piece_moved(m)][to_sq(m)];
-      }
+      it->score = history[pos.piece_moved(m)][to_sq(m)];
   }
 }
 
