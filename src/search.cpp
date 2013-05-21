@@ -1199,8 +1199,19 @@ split_point_start: // At split points actual search starts from here
                 ||(ss->evalMargin = tte->eval_margin()) == VALUE_NONE)
                 ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, &ss->ei);
         }
-        else
+        else {
             ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, &ss->ei);
+
+            Bitboard b = ss->ei.weak[pos.side_to_move()];
+            if (more_than_one(b)) {
+                PieceType best = KING;
+                while (b) {
+                   Square s = pop_lsb(&b);
+                   best = std::min(best, type_of(pos.piece_on(s)));
+                } 
+                bestValue -= PieceValue[MG][best] / 2;
+            }
+        }
 
         // Stand pat. Return immediately if static value is at least beta
         if (bestValue >= beta)
