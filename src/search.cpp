@@ -728,8 +728,8 @@ namespace {
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
         double slope = 0.9 + (static_cast<double>(depth) / 66.0);
-        double stdev = 20.0 + depth * 5;
-        Value rbeta = Value((static_cast<double>(beta) + stdev * 1.5) / slope);
+        double stdev = 50.0 + depth * 6;
+        Value rbeta = Value((static_cast<double>(beta) + stdev) / slope);
         Depth rdepth = depth - 4 * ONE_PLY;
 
         assert(rdepth >= ONE_PLY);
