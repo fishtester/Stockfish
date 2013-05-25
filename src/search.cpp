@@ -727,9 +727,7 @@ namespace {
         &&  excludedMove == MOVE_NONE
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
-        double slope = 0.9 + (static_cast<double>(depth) / 66.0);
-        double stdev = 50.0 + depth * 6;
-        Value rbeta = Value((static_cast<double>(beta) + stdev) / slope);
+        Value rbeta = Value(beta + 50 + depth * 6);
         Depth rdepth = depth - 4 * ONE_PLY;
 
         assert(rdepth >= ONE_PLY);
