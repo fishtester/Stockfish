@@ -727,8 +727,8 @@ namespace {
         &&  excludedMove == MOVE_NONE
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
-        Value rbeta = beta + 200;
-        Depth rdepth = depth - (3 * ONE_PLY + depth / 6);
+        Value rbeta = beta + 200 - depth * 4;
+        Depth rdepth = depth - 4 * ONE_PLY;
 
         assert(rdepth >= ONE_PLY);
         assert((ss-1)->currentMove != MOVE_NONE);
