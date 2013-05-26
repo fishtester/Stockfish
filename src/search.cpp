@@ -728,7 +728,7 @@ namespace {
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
         Value rbeta = beta + 200;
-        Depth rdepth = depth - (2 * ONE_PLY + depth / 6);
+        Depth rdepth = depth - (3 * ONE_PLY + depth / 6);
 
         assert(rdepth >= ONE_PLY);
         assert((ss-1)->currentMove != MOVE_NONE);
