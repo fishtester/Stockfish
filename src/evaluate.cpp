@@ -672,7 +672,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
         }
 
     if (more_than_one(ei.weak[Them]))
-        score += make_score(50, 50);
+        score += make_score(80, 80);
 
     if (Trace)
         TracedScores[Us][THREAT] = score;
