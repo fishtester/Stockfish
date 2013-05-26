@@ -52,6 +52,8 @@ namespace {
     // f7, g7, h7, f6, g6 and h6.
     Bitboard kingRing[COLOR_NB];
 
+    Bitboard weak[COLOR_NB];
+
     // kingAttackersCount[color] is the number of pieces of the given color
     // which attack a square in the kingRing of the enemy king.
     int kingAttackersCount[COLOR_NB];
@@ -69,6 +71,7 @@ namespace {
     // king is on g8 and there's a white knight on g5, this knight adds
     // 2 to kingAdjacentZoneAttacksCount[BLACK].
     int kingAdjacentZoneAttacksCount[COLOR_NB];
+
   };
 
   // Evaluation grain size, must be a power of 2
@@ -474,6 +477,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     Bitboard b = ei.attackedBy[Them][KING] = pos.attacks_from<KING>(pos.king_square(Them));
     ei.attackedBy[Us][PAWN] = ei.pi->pawn_attacks(Us);
+    ei.weak[Us] = 0;
 
     // Init king safety tables only if we are going to use them
     if (   pos.piece_count(Us, QUEEN)
@@ -551,8 +555,10 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
         // Decrease score if we are attacked by an enemy pawn. Remaining part
         // of threat evaluation must be done later when we have full attack info.
-        if (ei.attackedBy[Them][PAWN] & s)
+        if (ei.attackedBy[Them][PAWN] & s) {
             score -= ThreatenedByPawnPenalty[Piece];
+            ei.weak[Us] |= s;
+        }
 
         // Otherwise give a bonus if we are a bishop and can pin a piece or can
         // give a discovered check through an x-ray attack.
@@ -659,9 +665,14 @@ Value do_evaluate(const Position& pos, Value& margin) {
             b = ei.attackedBy[Us][pt1] & weakEnemies;
             if (b)
                 for (PieceType pt2 = PAWN; pt2 < KING; pt2++)
-                    if (b & pos.pieces(pt2))
+                    if (b & pos.pieces(pt2)) {
+                        if (pt1 < pt2) ei.weak[Them] |= b & pos.pieces(pt2);
                         score += ThreatBonus[pt1][pt2];
+                    }
         }
+
+    if (more_than_one(ei.weak[Them]))
+        score += make_score(50, 50);
 
     if (Trace)
         TracedScores[Us][THREAT] = score;
