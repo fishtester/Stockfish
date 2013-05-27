@@ -864,6 +864,7 @@ split_point_start: // At split points actual search starts from here
       // Update current move (this must be done after singular extension search)
       newDepth = depth - ONE_PLY + ext;
 
+      bool badSee = false;
       // Step 13. Futility pruning (is omitted in PV nodes)
       if (   !PvNode
           && !captureOrPromotion
@@ -904,8 +905,8 @@ split_point_start: // At split points actual search starts from here
           }
 
           // Prune moves with negative SEE at low depths
-          if (   predictedDepth < 4 * ONE_PLY
-              && pos.see_sign(move) < 0)
+          badSee = pos.see_sign(move) < 0;
+          if (badSee && predictedDepth < 4 * ONE_PLY)
           {
               if (SpNode)
                   splitPoint->mutex.lock();
@@ -948,6 +949,8 @@ split_point_start: // At split points actual search starts from here
           ss->reduction = reduction<PvNode>(depth, moveCount);
           if (move == countermoves[0] || move == countermoves[1])
               ss->reduction = std::max(DEPTH_ZERO, ss->reduction-ONE_PLY);
+          else if (badSee)
+              ss->reduction += ONE_PLY;
 
           Depth d = std::max(newDepth - ss->reduction, ONE_PLY);
           if (SpNode)
