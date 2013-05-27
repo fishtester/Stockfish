@@ -671,8 +671,15 @@ Value do_evaluate(const Position& pos, Value& margin) {
                     }
         }
 
-    if (more_than_one(ei.weak[Them]))
-        score += make_score(25, 25);
+    if (more_than_one(ei.weak[Them])) {
+        PieceType best = KING;
+        while (b) {
+            Square s = pop_lsb(&b);
+            best = std::min(best, type_of(pos.piece_on(s)));
+        } 
+        int v = PieceValue[MG][best] - PieceValue[MG][PAWN];
+        score += make_score(v, v);
+    }
 
     if (Trace)
         TracedScores[Us][THREAT] = score;
