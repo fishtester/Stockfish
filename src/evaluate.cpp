@@ -678,7 +678,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
             Square s = pop_lsb(&b);
             best = std::min(best, type_of(pos.piece_on(s)));
         }
-        int v = PieceValue[MG][best] / 2;
+        int v = PieceValue[MG][best] / 4;
         score += make_score(v, v);
     }
 
