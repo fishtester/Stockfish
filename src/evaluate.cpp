@@ -139,8 +139,8 @@ namespace {
   // which piece type attacks which one.
   const Score ThreatBonus[][PIECE_TYPE_NB] = {
     {}, {},
-    { S(0, 0), S( 7, 39), S( 0,  0), S(24, 49), S(41,100), S(41,100) }, // KNIGHT
-    { S(0, 0), S( 7, 39), S(24, 49), S( 0,  0), S(41,100), S(41,100) }, // BISHOP
+    { S(0, 0), S( 7, 39), S( 0,  0), S(20, 44), S(33, 90), S(33, 90) }, // KNIGHT
+    { S(0, 0), S( 7, 39), S(20, 44), S( 0,  0), S(33, 90), S(33, 90) }, // BISHOP
     { S(0, 0), S( 0, 22), S(15, 49), S(15, 49), S( 0,  0), S(24, 49) }, // ROOK
     { S(0, 0), S(15, 39), S(15, 39), S(15, 39), S(15, 39), S( 0,  0) }  // QUEEN
   };
@@ -148,7 +148,7 @@ namespace {
   // ThreatenedByPawnPenalty[PieceType] contains a penalty according to which
   // piece type is attacked by an enemy pawn.
   const Score ThreatenedByPawnPenalty[] = {
-    S(0, 0), S(0, 0), S(56, 70), S(56, 70), S(76, 99), S(86, 118)
+    S(0, 0), S(0, 0), S(36, 50), S(36, 50), S(56, 79), S(66, 98)
   };
 
   #undef S
@@ -666,13 +666,13 @@ Value do_evaluate(const Position& pos, Value& margin) {
             if (b)
                 for (PieceType pt2 = PAWN; pt2 < KING; pt2++)
                     if (b & pos.pieces(pt2)) {
-                        if (pt1 < pt2) ei.weak[Them] |= b & pos.pieces(pt2);
+                        if (pt1 <= pt2) ei.weak[Them] |= b & pos.pieces(pt2);
                         score += ThreatBonus[pt1][pt2];
                     }
         }
 
     if (more_than_one(ei.weak[Them]))
-        score += make_score(80, 80);
+        score += make_score(70, 90);
 
     if (Trace)
         TracedScores[Us][THREAT] = score;
