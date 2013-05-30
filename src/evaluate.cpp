@@ -666,7 +666,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
             if (b)
                 for (PieceType pt2 = PAWN; pt2 < KING; pt2++)
                     if (b & pos.pieces(pt2)) {
-                        if (pt1 <= pt2) ei.weak[Them] |= b & pos.pieces(pt2);
+                        if (pt1 < pt2) ei.weak[Them] |= b & pos.pieces(pt2);
                         score += ThreatBonus[pt1][pt2];
                     }
         }
