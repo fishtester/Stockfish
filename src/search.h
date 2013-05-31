@@ -57,7 +57,7 @@ struct Stack {
 /// all non-pv moves.
 struct RootMove {
 
-  RootMove(Move m) : score(-VALUE_INFINITE), prevScore(-VALUE_INFINITE) {
+  RootMove(Move m) : score(-VALUE_INFINITE), prevScore(-VALUE_INFINITE), failHighCount(0) {
     pv.push_back(m); pv.push_back(MOVE_NONE);
   }
 
@@ -69,6 +69,7 @@ struct RootMove {
 
   Value score;
   Value prevScore;
+  int failHighCount;
   std::vector<Move> pv;
 };
 

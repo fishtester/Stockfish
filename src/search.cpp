@@ -323,8 +323,10 @@ namespace {
     {
         // Save last iteration's scores before first PV line is searched and all
         // the move scores but the (new) PV are set to -VALUE_INFINITE.
-        for (size_t i = 0; i < RootMoves.size(); i++)
+        for (size_t i = 0; i < RootMoves.size(); i++) {
             RootMoves[i].prevScore = RootMoves[i].score;
+            RootMoves[i].failHighCount = 0;
+        }
 
         prevBestMoveChanges = BestMoveChanges; // Only sensible when PVSize == 1
         BestMoveChanges = 0;
@@ -369,8 +371,12 @@ namespace {
                 // If search has been stopped return immediately. Sorting and
                 // writing PV back to TT is safe becuase RootMoves is still
                 // valid, although refers to previous iteration.
-                if (Signals.stop)
+                if (Signals.stop) {
+                    if (BestMoveChanges && RootMoves[0].failHighCount < 2) {
+                        std::swap(RootMoves[0], RootMoves[1]);
+                    } 
                     return;
+                }
 
                 // In case of failing high/low increase aspiration window and
                 // research, otherwise exit the loop.
@@ -388,6 +394,7 @@ namespace {
                 }
                 else if (bestValue >= beta)
                 {
+                    RootMoves[0].failHighCount++;
                     beta += delta;
                     delta += delta / 2;
                 }
