@@ -372,7 +372,7 @@ namespace {
                 // writing PV back to TT is safe becuase RootMoves is still
                 // valid, although refers to previous iteration.
                 if (Signals.stop) {
-                    if (BestMoveChanges && RootMoves[0].failHighCount < 2) {
+                    if (BestMoveChanges && RootMoves[0].failHighCount < 2 && bestValue >= beta) {
                         std::swap(RootMoves[0], RootMoves[1]);
                     } 
                     return;
