@@ -503,7 +503,7 @@ namespace {
     Value bestValue, value, ttValue;
     Value eval, nullValue, futilityValue;
     bool inCheck, givesCheck, pvMove, singularExtensionNode;
-    bool captureOrPromotion, dangerous, doFullDepthSearch;
+    bool captureOrPromotion, dangerous, doFullDepthSearch, isCut;
     int moveCount, playedMoveCount;
 
     // Step 1. Initialize node
@@ -530,6 +530,8 @@ namespace {
     ss->currentMove = threatMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
     ss->futilityMoveCount = 0;
+    ss->depthFromPV = PvNode ? 0 : (ss-1)->depthFromPV + 1;
+    isCut = ss->depthFromPV & 1;
     (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
@@ -1110,7 +1112,7 @@ split_point_start: // At split points actual search starts from here
             }
         }
     }
-    else // Failed low or PV search
+    else // Failed low or PV search 
         TT.store(posKey, value_to_tt(bestValue, ss->ply),
                  PvNode && bestMove != MOVE_NONE ? BOUND_EXACT : BOUND_UPPER,
                  depth, bestMove, ss->staticEval, ss->evalMargin);
