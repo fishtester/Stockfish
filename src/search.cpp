@@ -781,7 +781,8 @@ split_point_start: // At split points actual search starts from here
                            &&  ttMove != MOVE_NONE
                            && !excludedMove // Recursive singular search is not allowed
                            && (tte->type() & BOUND_LOWER)
-                           &&  tte->depth() >= depth - 3 * ONE_PLY;
+                           &&  tte->depth() >= depth - 3 * ONE_PLY
+                           && (PvNode || cutNode);
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
