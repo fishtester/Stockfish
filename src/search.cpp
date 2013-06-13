@@ -754,7 +754,7 @@ namespace {
     // Step 10. Internal iterative deepening
     if (   depth >= (PvNode ? 5 * ONE_PLY : 8 * ONE_PLY)
         && ttMove == MOVE_NONE
-        && (PvNode || (!inCheck && ss->staticEval + Value(256) >= beta)))
+        && (PvNode || cutNode || (!inCheck && ss->staticEval + Value(256) >= beta)))
     {
         Depth d = depth - 2 * ONE_PLY - (PvNode ? DEPTH_ZERO : depth / 4);
 
@@ -781,8 +781,7 @@ split_point_start: // At split points actual search starts from here
                            &&  ttMove != MOVE_NONE
                            && !excludedMove // Recursive singular search is not allowed
                            && (tte->type() & BOUND_LOWER)
-                           &&  tte->depth() >= depth - 3 * ONE_PLY
-                           && (PvNode || cutNode);
+                           &&  tte->depth() >= depth - 3 * ONE_PLY;
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
@@ -853,7 +852,7 @@ split_point_start: // At split points actual search starts from here
       {
           assert(ttValue != VALUE_NONE);
 
-          Value rBeta = ttValue - int(depth) / (PvNode ? 1 : 2);
+          Value rBeta = ttValue - int(depth);
           ss->excludedMove = move;
           ss->skipNullMove = true;
           value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth / 2, cutNode);
