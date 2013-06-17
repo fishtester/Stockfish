@@ -102,7 +102,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats&
 }
 
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats& h,
-                       Square sq) : pos(p), history(h), cur(moves), end(moves) {
+                       Square sq) : pos(p), history(h), ss(0), cur(moves), end(moves) {
 
   assert(d <= DEPTH_ZERO);
 
@@ -212,9 +212,16 @@ void MovePicker::score<EVASIONS>() {
 
       else if (pos.is_capture(m))
           it->score =  PieceValue[MG][pos.piece_on(to_sq(m))]
-                     - type_of(pos.piece_moved(m)) + HistoryStats::Max;
-      else
-          it->score = history[pos.piece_moved(m)][to_sq(m)];
+                     - type_of(pos.piece_moved(m)) + HistoryStats::Max * 2;
+      else {
+          if (ss && (m == ss->killers[0] || m == ss->killers[1])) {
+            it->score = HistoryStats::Max + 2;
+          } else if (ss && (m == countermoves[0] || m == countermoves[1])) {
+            it->score = HistoryStats::Max + 1;
+          } else {
+            it->score = history[pos.piece_moved(m)][to_sq(m)];
+          }
+      }
   }
 }
 
