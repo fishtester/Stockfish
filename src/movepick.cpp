@@ -215,8 +215,6 @@ void MovePicker::score<EVASIONS>() {
                      - type_of(pos.piece_moved(m)) + HistoryStats::Max * 2;
       else {
           if (ss && (m == ss->killers[0] || m == ss->killers[1])) {
-            it->score = HistoryStats::Max + 2;
-          } else if (ss && (m == countermoves[0] || m == countermoves[1])) {
             it->score = HistoryStats::Max + 1;
           } else {
             it->score = history[pos.piece_moved(m)][to_sq(m)];
