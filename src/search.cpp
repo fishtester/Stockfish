@@ -874,7 +874,8 @@ split_point_start: // At split points actual search starts from here
           &&  bestValue > VALUE_MATED_IN_MAX_PLY)
       {
           // Move count based pruning
-          if (   depth < 16 * ONE_PLY
+          if (  !SpNode
+              && depth < 16 * ONE_PLY
               && moveCount >= FutilityMoveCounts[depth]
               && (!threatMove || !refutes(pos, move, threatMove)))
           {
