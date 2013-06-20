@@ -532,6 +532,7 @@ namespace {
     ss->currentMove = threatMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
     ss->futilityMoveCount = 0;
+    (ss+1)->splitPoint = ss->splitPoint;
     (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
@@ -874,7 +875,7 @@ split_point_start: // At split points actual search starts from here
           &&  bestValue > VALUE_MATED_IN_MAX_PLY)
       {
           // Move count based pruning
-          if (  !SpNode
+          if (  !ss->splitPoint
               && depth < 16 * ONE_PLY
               && moveCount >= FutilityMoveCounts[depth]
               && (!threatMove || !refutes(pos, move, threatMove)))
