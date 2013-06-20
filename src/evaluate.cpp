@@ -437,11 +437,14 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     const Color  Them = (Us == WHITE ? BLACK : WHITE);
     const Square Down = (Us == WHITE ? DELTA_S : DELTA_N);
+    const Square Right = (Us == WHITE ? DELTA_NE : DELTA_SW);
+    const Square Left  = (Us == WHITE ? DELTA_NW : DELTA_SE);
 
     Bitboard b = ei.attackedBy[Them][KING] = pos.attacks_from<KING>(pos.king_square(Them));
 
     ei.pinned[Us] = pos.pinned_pieces(Us);
-    ei.attackedBy[Us][PAWN] = ei.pi->pawn_attacks(Us);
+    Bitboard ourPawns = pos.pieces(Us, PAWN) & ~ei.pinned[Us];
+    ei.attackedBy[Us][PAWN] = shift_bb<Right>(ourPawns) | shift_bb<Left>(ourPawns);
 
     // Init king safety tables only if we are going to use them
     if (pos.count<QUEEN>(Us) && pos.non_pawn_material(Us) > QueenValueMg + PawnValueMg)
