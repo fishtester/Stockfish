@@ -66,6 +66,8 @@ namespace {
     // f7, g7, h7, f6, g6 and h6.
     Bitboard kingRing[COLOR_NB];
 
+    Bitboard pinned[COLOR_NB];
+
     // kingAttackersCount[color] is the number of pieces of the given color
     // which attack a square in the kingRing of the enemy king.
     int kingAttackersCount[COLOR_NB];
@@ -437,6 +439,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
     const Square Down = (Us == WHITE ? DELTA_S : DELTA_N);
 
     Bitboard b = ei.attackedBy[Them][KING] = pos.attacks_from<KING>(pos.king_square(Them));
+
+    ei.pinned[Us] = pos.pinned_pieces(Us);
     ei.attackedBy[Us][PAWN] = ei.pi->pawn_attacks(Us);
 
     // Init king safety tables only if we are going to use them
