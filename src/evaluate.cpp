@@ -83,6 +83,8 @@ namespace {
     // king is on g8 and there's a white knight on g5, this knight adds
     // 2 to kingAdjacentZoneAttacksCount[BLACK].
     int kingAdjacentZoneAttacksCount[COLOR_NB];
+
+    int checkThreat[COLOR_NB];
   };
 
   // Evaluation grain size, must be a power of 2
@@ -438,6 +440,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     Bitboard b = ei.attackedBy[Them][KING] = pos.attacks_from<KING>(pos.king_square(Them));
     ei.attackedBy[Us][PAWN] = ei.pi->pawn_attacks(Us);
+    ei.checkThreat[Us] = 0;
 
     // Init king safety tables only if we are going to use them
     if (pos.count<QUEEN>(Us) && pos.non_pawn_material(Us) > QueenValueMg + PawnValueMg)
@@ -509,6 +512,13 @@ Value do_evaluate(const Position& pos, Value& margin) {
                 ei.kingAdjacentZoneAttacksCount[Us] += popcount<Max15>(bb);
         }
 
+        Bitboard between = 0;
+        if (PseudoAttacks[Piece][pos.king_square(Them)] & s) {
+            between = BetweenBB[s][pos.king_square(Them)] & pos.pieces();
+            if (!more_than_one(between))
+                ++ei.checkThreat[Us];
+        }
+
         int mob = popcount<Piece == QUEEN ? Full : Max15>(b & mobilityArea);
         mobility += MobilityBonus[Piece][mob];
 
@@ -520,8 +530,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // Otherwise give a bonus if we are a bishop and can pin a piece or can
         // give a discovered check through an x-ray attack.
         else if (    Piece == BISHOP
-                 && (PseudoAttacks[Piece][pos.king_square(Them)] & s)
-                 && !more_than_one(BetweenBB[s][pos.king_square(Them)] & pos.pieces()))
+                 && between 
+                 && !more_than_one(between))
                  score += BishopPin;
 
         // Penalty for bishop with same coloured pawns
@@ -678,7 +688,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (   ei.kingAttackersCount[Them] >= 2
+    if (  (ei.kingAttackersCount[Them] >= 2 || ei.checkThreat[Them])
         && ei.kingAdjacentZoneAttacksCount[Them])
     {
         // Find the attacked squares around the king which has no defenders
@@ -696,6 +706,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
         attackUnits =  std::min(25, (ei.kingAttackersCount[Them] * ei.kingAttackersWeight[Them]) / 2)
                      + 3 * (ei.kingAdjacentZoneAttacksCount[Them] + popcount<Max15>(undefended))
                      + KingExposed[relative_square(Us, ksq)]
+                     + ei.checkThreat[Them] * 10 
                      - mg_value(score) / 32;
 
         // Analyse enemy's safe queen contact checks. First find undefended
