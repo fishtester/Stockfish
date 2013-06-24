@@ -691,9 +691,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (ei.checkThreat[Them] ||
-        (ei.kingAttackersCount[Them] >= 2 
-         && ei.kingAdjacentZoneAttacksCount[Them]))
+    if ((ei.kingAttackersCount[Them] >= 2 || ei.checkThreat[Them])
+         && ei.kingAdjacentZoneAttacksCount[Them])
     {
         // Find the attacked squares around the king which has no defenders
         // apart from the king itself
