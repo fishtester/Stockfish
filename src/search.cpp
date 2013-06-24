@@ -950,6 +950,9 @@ split_point_start: // At split points actual search starts from here
           if (move == countermoves[0] || move == countermoves[1])
               ss->reduction = std::max(DEPTH_ZERO, ss->reduction-ONE_PLY);
 
+          // Less reduction in SMP
+          ss->reduction = std::max(DEPTH_ZERO, ss->reduction - int(Threads.size() - 1) * ONE_PLY / 2);
+
           Depth d = std::max(newDepth - ss->reduction, ONE_PLY);
           if (SpNode)
               alpha = splitPoint->alpha;
