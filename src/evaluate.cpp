@@ -66,6 +66,7 @@ namespace {
     // f7, g7, h7, f6, g6 and h6.
     Bitboard kingRing[COLOR_NB];
 
+    int checkThreat[COLOR_NB];
     // kingAttackersCount[color] is the number of pieces of the given color
     // which attack a square in the kingRing of the enemy king.
     int kingAttackersCount[COLOR_NB];
@@ -84,7 +85,6 @@ namespace {
     // 2 to kingAdjacentZoneAttacksCount[BLACK].
     int kingAdjacentZoneAttacksCount[COLOR_NB];
 
-    int checkThreat[COLOR_NB];
   };
 
   // Evaluation grain size, must be a power of 2
@@ -318,6 +318,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
   Score score, mobilityWhite, mobilityBlack;
   Thread* th = pos.this_thread();
 
+
   // margins[] store the uncertainty estimation of position's evaluation
   // that typically is used by the search for pruning decisions.
   margins[WHITE] = margins[BLACK] = VALUE_ZERO;
@@ -451,6 +452,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
         ei.kingAdjacentZoneAttacksCount[Us] = ei.kingAttackersWeight[Us] = 0;
     } else
         ei.kingRing[Them] = ei.kingAttackersCount[Us] = 0;
+        ei.kingAdjacentZoneAttacksCount[Us] = ei.kingAttackersWeight[Us] = 0;
   }
 
 
@@ -513,11 +515,12 @@ Value do_evaluate(const Position& pos, Value& margin) {
         }
 
         bool isCheckThreat = false;
-        if (PseudoAttacks[Piece][pos.king_square(Them)] & s) {
+        if (Piece != KNIGHT && (PseudoAttacks[Piece][pos.king_square(Them)] & s)) {
             Bitboard between = BetweenBB[s][pos.king_square(Them)] & pos.pieces();
-            isCheckThreat = !more_than_one(between);
-            if (isCheckThreat)
+            if (!more_than_one(between)) {
+                isCheckThreat = true;
                 ++ei.checkThreat[Us];
+            }
         }
 
         int mob = popcount<Piece == QUEEN ? Full : Max15>(b & mobilityArea);
@@ -652,6 +655,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     Score score = mobility = SCORE_ZERO;
 
+
     // Do not include in mobility squares protected by enemy pawns or occupied by our pieces
     const Bitboard mobilityArea = ~(ei.attackedBy[Them][PAWN] | pos.pieces(Us, PAWN, KING));
 
@@ -687,8 +691,9 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (   ei.kingAttackersCount[Them] >= 2
-        && ei.kingAdjacentZoneAttacksCount[Them])
+    if (ei.checkThreat[Them] ||
+        (ei.kingAttackersCount[Them] >= 2 
+         && ei.kingAdjacentZoneAttacksCount[Them]))
     {
         // Find the attacked squares around the king which has no defenders
         // apart from the king itself
@@ -705,7 +710,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
         attackUnits =  std::min(25, (ei.kingAttackersCount[Them] * ei.kingAttackersWeight[Them]) / 2)
                      + 3 * (ei.kingAdjacentZoneAttacksCount[Them] + popcount<Max15>(undefended))
                      + KingExposed[relative_square(Us, ksq)]
-                     + ei.checkThreat[Them] * 10 
+                     + ei.checkThreat[Them] * 10
                      - mg_value(score) / 32;
 
         // Analyse enemy's safe queen contact checks. First find undefended
