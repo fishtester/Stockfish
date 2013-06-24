@@ -512,10 +512,11 @@ Value do_evaluate(const Position& pos, Value& margin) {
                 ei.kingAdjacentZoneAttacksCount[Us] += popcount<Max15>(bb);
         }
 
-        Bitboard between = 0;
+        bool isCheckThreat = false;
         if (PseudoAttacks[Piece][pos.king_square(Them)] & s) {
-            between = BetweenBB[s][pos.king_square(Them)] & pos.pieces();
-            if (!more_than_one(between))
+            Bitboard between = BetweenBB[s][pos.king_square(Them)] & pos.pieces();
+            isCheckThreat = !more_than_one(between);
+            if (isCheckThreat)
                 ++ei.checkThreat[Us];
         }
 
@@ -529,10 +530,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
         // Otherwise give a bonus if we are a bishop and can pin a piece or can
         // give a discovered check through an x-ray attack.
-        else if (    Piece == BISHOP
-                 && between 
-                 && !more_than_one(between))
-                 score += BishopPin;
+        else if (Piece == BISHOP && isCheckThreat)
+            score += BishopPin;
 
         // Penalty for bishop with same coloured pawns
         if (Piece == BISHOP)
@@ -688,7 +687,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
-    if (  (ei.kingAttackersCount[Them] >= 2 || ei.checkThreat[Them])
+    if (   ei.kingAttackersCount[Them] >= 2
         && ei.kingAdjacentZoneAttacksCount[Them])
     {
         // Find the attacked squares around the king which has no defenders
