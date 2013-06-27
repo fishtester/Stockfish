@@ -694,9 +694,9 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // attacked and undefended squares around our king, the square of the
         // king, and the quality of the pawn shelter.
         attackUnits =  std::min(25, (ei.kingAttackersCount[Them] * ei.kingAttackersWeight[Them]) / 2)
-                     + 3 * (ei.kingAdjacentZoneAttacksCount[Them] + popcount<Max15>(undefended))
+                     + 2 * (ei.kingAdjacentZoneAttacksCount[Them] + popcount<Max15>(undefended))
                      + KingExposed[relative_square(Us, ksq)]
-                     - mg_value(score) / 16;
+                     - mg_value(score) / 32;
 
         // Analyse enemy's safe queen contact checks. First find undefended
         // squares around the king attacked by enemy queen...
