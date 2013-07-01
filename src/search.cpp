@@ -503,7 +503,7 @@ namespace {
     bool inCheck, givesCheck, pvMove, singularExtensionNode;
     bool captureOrPromotion, dangerous, doFullDepthSearch;
     int moveCount, quietCount;
-    bool evalDanger = false;
+    int evalThreatFlags = 0;
 
     // Step 1. Initialize node
     Thread* thisThread = pos.this_thread();
@@ -598,7 +598,7 @@ namespace {
         // Never assume anything on values stored in TT
         if (  (ss->staticEval = eval = tte->eval_value()) == VALUE_NONE
             ||(ss->evalMargin = tte->eval_margin()) == VALUE_NONE)
-            eval = ss->staticEval = evaluate(pos, ss->evalMargin, evalDanger);
+            eval = ss->staticEval = evaluate(pos, ss->evalMargin, evalThreatFlags);
 
         // Can ttValue be used as a better position evaluation?
         if (ttValue != VALUE_NONE)
@@ -608,7 +608,7 @@ namespace {
     }
     else
     {
-        eval = ss->staticEval = evaluate(pos, ss->evalMargin, evalDanger);
+        eval = ss->staticEval = evaluate(pos, ss->evalMargin, evalThreatFlags);
         TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
                  ss->staticEval, ss->evalMargin);
     }
@@ -629,6 +629,7 @@ namespace {
     if (   !PvNode
         &&  depth < 4 * ONE_PLY
         && !inCheck
+        && !(evalThreatFlags & 1)
         &&  eval + razor_margin(depth) < beta
         &&  ttMove == MOVE_NONE
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
@@ -649,6 +650,7 @@ namespace {
         && !ss->skipNullMove
         &&  depth < 4 * ONE_PLY
         && !inCheck
+        && !(evalThreatFlags & 2)
         &&  eval - futility_margin(depth, (ss-1)->futilityMoveCount) >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
         &&  abs(eval) < VALUE_KNOWN_WIN
@@ -723,6 +725,7 @@ namespace {
         &&  depth >= 5 * ONE_PLY
         && !inCheck
         && !ss->skipNullMove
+        && (evalThreatFlags & 1)
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
         Value rbeta = beta + 200;
@@ -1174,7 +1177,7 @@ split_point_start: // At split points actual search starts from here
         return ttValue;
     }
 
-    bool evalDanger = false;
+    int evalThreatFlags = 0;
 
     // Evaluate the position statically
     if (InCheck)
@@ -1190,10 +1193,10 @@ split_point_start: // At split points actual search starts from here
             // Never assume anything on values stored in TT
             if (  (ss->staticEval = bestValue = tte->eval_value()) == VALUE_NONE
                 ||(ss->evalMargin = tte->eval_margin()) == VALUE_NONE)
-                ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, evalDanger);
+                ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, evalThreatFlags);
         }
         else
-            ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, evalDanger);
+            ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, evalThreatFlags);
 
         // Stand pat. Return immediately if static value is at least beta
         if (bestValue >= beta)

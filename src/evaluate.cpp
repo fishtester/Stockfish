@@ -229,7 +229,7 @@ namespace {
 
   // Function prototypes
   template<bool Trace>
-  Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat);
+  Value do_evaluate(const Position& pos, Value& margin, int& evalThreatFlags);
 
   template<Color Us>
   void init_eval_info(const Position& pos, EvalInfo& ei);
@@ -264,8 +264,8 @@ namespace Eval {
   /// values, an endgame score and a middle game score, and interpolates
   /// between them based on the remaining material.
 
-  Value evaluate(const Position& pos, Value& margin, bool& evalThreat) {
-    return do_evaluate<false>(pos, margin, evalThreat);
+  Value evaluate(const Position& pos, Value& margin, int& evalThreatFlags) {
+    return do_evaluate<false>(pos, margin, evalThreatFlags);
   }
 
 
@@ -307,20 +307,20 @@ namespace Eval {
 namespace {
 
 template<bool Trace>
-Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat) {
+Value do_evaluate(const Position& pos, Value& margin, int& evalThreatFlags) {
 
   assert(!pos.checkers());
 
   EvalInfo ei;
   Value margins[COLOR_NB];
-  bool evalThreatFlags[COLOR_NB];
+  bool evalThreat[COLOR_NB];
   Score score, mobilityWhite, mobilityBlack;
   Thread* th = pos.this_thread();
 
   // margins[] store the uncertainty estimation of position's evaluation
   // that typically is used by the search for pruning decisions.
   margins[WHITE] = margins[BLACK] = VALUE_ZERO;
-  evalThreatFlags[WHITE] = evalThreatFlags[BLACK] = false;
+  evalThreat[WHITE] = evalThreat[BLACK] = false;
 
   // Initialize score by reading the incrementally updated scores included
   // in the position object (material + piece square tables) and adding
@@ -348,8 +348,8 @@ Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat) {
   init_eval_info<BLACK>(pos, ei);
 
   // Evaluate pieces and mobility
-  score +=  evaluate_pieces_of_color<WHITE, Trace>(pos, ei, mobilityWhite, evalThreatFlags)
-          - evaluate_pieces_of_color<BLACK, Trace>(pos, ei, mobilityBlack, evalThreatFlags);
+  score +=  evaluate_pieces_of_color<WHITE, Trace>(pos, ei, mobilityWhite, evalThreat)
+          - evaluate_pieces_of_color<BLACK, Trace>(pos, ei, mobilityBlack, evalThreat);
 
   score += apply_weight(mobilityWhite - mobilityBlack, Weights[Mobility]);
 
@@ -359,8 +359,8 @@ Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat) {
           - evaluate_king<BLACK, Trace>(pos, ei, margins);
 
   // Evaluate tactical threats, we need full attack information including king
-  score +=  evaluate_threats<WHITE, Trace>(pos, ei, evalThreatFlags)
-          - evaluate_threats<BLACK, Trace>(pos, ei, evalThreatFlags);
+  score +=  evaluate_threats<WHITE, Trace>(pos, ei, evalThreat)
+          - evaluate_threats<BLACK, Trace>(pos, ei, evalThreat);
 
   // Evaluate passed pawns, we need full attack information including king
   score +=  evaluate_passed_pawns<WHITE, Trace>(pos, ei)
@@ -403,7 +403,9 @@ Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat) {
   }
 
   margin = margins[pos.side_to_move()];
-  evalThreat = evalThreatFlags[pos.side_to_move()];
+  evalThreatFlags = 0;
+  if (evalThreat[pos.side_to_move()]) evalThreatFlags |= 1;
+  if (evalThreat[pos.side_to_move() == WHITE ? BLACK : WHITE]) evalThreatFlags |= 2;
   Value v = interpolate(score, ei.mi->game_phase(), sf);
 
   // In case of tracing add all single evaluation contributions for both white and black
@@ -1151,8 +1153,8 @@ Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat) {
     memset(scores, 0, 2 * (TOTAL + 1) * sizeof(Score));
 
     Value margin;
-    bool evalThreat;
-    do_evaluate<true>(pos, margin, evalThreat);
+    int evalThreatFlags;
+    do_evaluate<true>(pos, margin, evalThreatFlags);
 
     std::string totals = stream.str();
     stream.str("");
