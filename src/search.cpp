@@ -503,6 +503,7 @@ namespace {
     bool inCheck, givesCheck, pvMove, singularExtensionNode;
     bool captureOrPromotion, dangerous, doFullDepthSearch;
     int moveCount, quietCount;
+    bool evalDanger = false;
 
     // Step 1. Initialize node
     Thread* thisThread = pos.this_thread();
@@ -597,7 +598,7 @@ namespace {
         // Never assume anything on values stored in TT
         if (  (ss->staticEval = eval = tte->eval_value()) == VALUE_NONE
             ||(ss->evalMargin = tte->eval_margin()) == VALUE_NONE)
-            eval = ss->staticEval = evaluate(pos, ss->evalMargin);
+            eval = ss->staticEval = evaluate(pos, ss->evalMargin, evalDanger);
 
         // Can ttValue be used as a better position evaluation?
         if (ttValue != VALUE_NONE)
@@ -607,7 +608,7 @@ namespace {
     }
     else
     {
-        eval = ss->staticEval = evaluate(pos, ss->evalMargin);
+        eval = ss->staticEval = evaluate(pos, ss->evalMargin, evalDanger);
         TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
                  ss->staticEval, ss->evalMargin);
     }
@@ -1173,6 +1174,8 @@ split_point_start: // At split points actual search starts from here
         return ttValue;
     }
 
+    bool evalDanger = false;
+
     // Evaluate the position statically
     if (InCheck)
     {
@@ -1187,10 +1190,10 @@ split_point_start: // At split points actual search starts from here
             // Never assume anything on values stored in TT
             if (  (ss->staticEval = bestValue = tte->eval_value()) == VALUE_NONE
                 ||(ss->evalMargin = tte->eval_margin()) == VALUE_NONE)
-                ss->staticEval = bestValue = evaluate(pos, ss->evalMargin);
+                ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, evalDanger);
         }
         else
-            ss->staticEval = bestValue = evaluate(pos, ss->evalMargin);
+            ss->staticEval = bestValue = evaluate(pos, ss->evalMargin, evalDanger);
 
         // Stand pat. Return immediately if static value is at least beta
         if (bestValue >= beta)

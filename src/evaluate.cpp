@@ -229,19 +229,19 @@ namespace {
 
   // Function prototypes
   template<bool Trace>
-  Value do_evaluate(const Position& pos, Value& margin);
+  Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat);
 
   template<Color Us>
   void init_eval_info(const Position& pos, EvalInfo& ei);
 
   template<Color Us, bool Trace>
-  Score evaluate_pieces_of_color(const Position& pos, EvalInfo& ei, Score& mobility);
+  Score evaluate_pieces_of_color(const Position& pos, EvalInfo& ei, Score& mobility, bool evalThreat[]);
 
   template<Color Us, bool Trace>
   Score evaluate_king(const Position& pos, EvalInfo& ei, Value margins[]);
 
   template<Color Us, bool Trace>
-  Score evaluate_threats(const Position& pos, EvalInfo& ei);
+  Score evaluate_threats(const Position& pos, EvalInfo& ei, bool evalThreat[]);
 
   template<Color Us, bool Trace>
   Score evaluate_passed_pawns(const Position& pos, EvalInfo& ei);
@@ -264,8 +264,8 @@ namespace Eval {
   /// values, an endgame score and a middle game score, and interpolates
   /// between them based on the remaining material.
 
-  Value evaluate(const Position& pos, Value& margin) {
-    return do_evaluate<false>(pos, margin);
+  Value evaluate(const Position& pos, Value& margin, bool& evalThreat) {
+    return do_evaluate<false>(pos, margin, evalThreat);
   }
 
 
@@ -307,18 +307,20 @@ namespace Eval {
 namespace {
 
 template<bool Trace>
-Value do_evaluate(const Position& pos, Value& margin) {
+Value do_evaluate(const Position& pos, Value& margin, bool& evalThreat) {
 
   assert(!pos.checkers());
 
   EvalInfo ei;
   Value margins[COLOR_NB];
+  bool evalThreatFlags[COLOR_NB];
   Score score, mobilityWhite, mobilityBlack;
   Thread* th = pos.this_thread();
 
   // margins[] store the uncertainty estimation of position's evaluation
   // that typically is used by the search for pruning decisions.
   margins[WHITE] = margins[BLACK] = VALUE_ZERO;
+  evalThreatFlags[WHITE] = evalThreatFlags[BLACK] = false;
 
   // Initialize score by reading the incrementally updated scores included
   // in the position object (material + piece square tables) and adding
@@ -346,8 +348,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
   init_eval_info<BLACK>(pos, ei);
 
   // Evaluate pieces and mobility
-  score +=  evaluate_pieces_of_color<WHITE, Trace>(pos, ei, mobilityWhite)
-          - evaluate_pieces_of_color<BLACK, Trace>(pos, ei, mobilityBlack);
+  score +=  evaluate_pieces_of_color<WHITE, Trace>(pos, ei, mobilityWhite, evalThreatFlags)
+          - evaluate_pieces_of_color<BLACK, Trace>(pos, ei, mobilityBlack, evalThreatFlags);
 
   score += apply_weight(mobilityWhite - mobilityBlack, Weights[Mobility]);
 
@@ -357,8 +359,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
           - evaluate_king<BLACK, Trace>(pos, ei, margins);
 
   // Evaluate tactical threats, we need full attack information including king
-  score +=  evaluate_threats<WHITE, Trace>(pos, ei)
-          - evaluate_threats<BLACK, Trace>(pos, ei);
+  score +=  evaluate_threats<WHITE, Trace>(pos, ei, evalThreatFlags)
+          - evaluate_threats<BLACK, Trace>(pos, ei, evalThreatFlags);
 
   // Evaluate passed pawns, we need full attack information including king
   score +=  evaluate_passed_pawns<WHITE, Trace>(pos, ei)
@@ -401,6 +403,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
   }
 
   margin = margins[pos.side_to_move()];
+  evalThreat = evalThreatFlags[pos.side_to_move()];
   Value v = interpolate(score, ei.mi->game_phase(), sf);
 
   // In case of tracing add all single evaluation contributions for both white and black
@@ -480,7 +483,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
   // evaluate_pieces<>() assigns bonuses and penalties to the pieces of a given color
 
   template<PieceType Piece, Color Us, bool Trace>
-  Score evaluate_pieces(const Position& pos, EvalInfo& ei, Score& mobility, Bitboard mobilityArea) {
+  Score evaluate_pieces(const Position& pos, EvalInfo& ei, Score& mobility, Bitboard mobilityArea, bool evalThreat[]) {
 
     Bitboard b;
     Square s;
@@ -514,12 +517,13 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
         // Decrease score if we are attacked by an enemy pawn. Remaining part
         // of threat evaluation must be done later when we have full attack info.
-        if (ei.attackedBy[Them][PAWN] & s)
+        if (ei.attackedBy[Them][PAWN] & s) {
             score -= ThreatenedByPawn[Piece];
+            evalThreat[Them] = true;
 
         // Otherwise give a bonus if we are a bishop and can pin a piece or can
         // give a discovered check through an x-ray attack.
-        else if (    Piece == BISHOP
+        } else if (    Piece == BISHOP
                  && (PseudoAttacks[Piece][pos.king_square(Them)] & s)
                  && !more_than_one(BetweenBB[s][pos.king_square(Them)] & pos.pieces()))
                  score += BishopPin;
@@ -594,7 +598,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
   // and the type of attacked one.
 
   template<Color Us, bool Trace>
-  Score evaluate_threats(const Position& pos, EvalInfo& ei) {
+  Score evaluate_threats(const Position& pos, EvalInfo& ei, bool evalThreat[]) {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
@@ -622,8 +626,11 @@ Value do_evaluate(const Position& pos, Value& margin) {
             b = ei.attackedBy[Us][pt1] & weakEnemies;
             if (b)
                 for (PieceType pt2 = PAWN; pt2 < KING; pt2++)
-                    if (b & pos.pieces(pt2))
+                    if (b & pos.pieces(pt2)) {
+                        if (pt1 < pt2)
+                            evalThreat[Us] = true;
                         score += Threat[pt1][pt2];
+                    }
         }
 
     if (Trace)
@@ -637,7 +644,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
   // pieces of a given color.
 
   template<Color Us, bool Trace>
-  Score evaluate_pieces_of_color(const Position& pos, EvalInfo& ei, Score& mobility) {
+  Score evaluate_pieces_of_color(const Position& pos, EvalInfo& ei, Score& mobility, bool evalThreat[]) {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
@@ -646,10 +653,10 @@ Value do_evaluate(const Position& pos, Value& margin) {
     // Do not include in mobility squares protected by enemy pawns or occupied by our pieces
     const Bitboard mobilityArea = ~(ei.attackedBy[Them][PAWN] | pos.pieces(Us, PAWN, KING));
 
-    score += evaluate_pieces<KNIGHT, Us, Trace>(pos, ei, mobility, mobilityArea);
-    score += evaluate_pieces<BISHOP, Us, Trace>(pos, ei, mobility, mobilityArea);
-    score += evaluate_pieces<ROOK,   Us, Trace>(pos, ei, mobility, mobilityArea);
-    score += evaluate_pieces<QUEEN,  Us, Trace>(pos, ei, mobility, mobilityArea);
+    score += evaluate_pieces<KNIGHT, Us, Trace>(pos, ei, mobility, mobilityArea, evalThreat);
+    score += evaluate_pieces<BISHOP, Us, Trace>(pos, ei, mobility, mobilityArea, evalThreat);
+    score += evaluate_pieces<ROOK,   Us, Trace>(pos, ei, mobility, mobilityArea, evalThreat);
+    score += evaluate_pieces<QUEEN,  Us, Trace>(pos, ei, mobility, mobilityArea, evalThreat);
 
     // Sum up all attacked squares
     ei.attackedBy[Us][ALL_PIECES] =   ei.attackedBy[Us][PAWN]   | ei.attackedBy[Us][KNIGHT]
@@ -1144,7 +1151,8 @@ Value do_evaluate(const Position& pos, Value& margin) {
     memset(scores, 0, 2 * (TOTAL + 1) * sizeof(Score));
 
     Value margin;
-    do_evaluate<true>(pos, margin);
+    bool evalThreat;
+    do_evaluate<true>(pos, margin, evalThreat);
 
     std::string totals = stream.str();
     stream.str("");
