@@ -677,6 +677,9 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // King shelter and enemy pawns storm
     Score score = ei.pi->king_safety<Us>(pos, ksq);
+    if (!pos.count<QUEEN>(Them)) {
+       score = make_score(mg_value(score) / 2, eg_value(score));
+    }
 
     // King safety. This is quite complicated, and is almost certainly far
     // from optimally tuned.
